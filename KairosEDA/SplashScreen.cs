@@ -21,9 +21,16 @@ namespace KairosEDA
         public SplashScreen()
         {
             InitializeComponent();
-            // Apply classic theme to match main application
-            if (this.IsHandleCreated)
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            // Ensure the classic theme is applied once the handle exists
+            if (this.Handle != IntPtr.Zero)
             {
+                Win32Native.DisableAeroGlass(this.Handle);
                 Win32Native.ApplyClassicThemeRecursive(this);
             }
         }
@@ -53,12 +60,12 @@ namespace KairosEDA
             }
             catch { }
 
-            // Header panel - Classic Windows style with purple
+            // Header panel - Classic Windows blue
             Panel headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 60,
-                BackColor = Color.FromArgb(119, 118, 151) // Purple color
+                BackColor = SystemColors.ActiveCaption
             };
             this.Controls.Add(headerPanel);
 
@@ -67,7 +74,7 @@ namespace KairosEDA
             {
                 Text = "KAIROS EDA",
                 Font = new Font("Tahoma", 24, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = SystemColors.ActiveCaptionText,
                 AutoSize = false,
                 Size = new Size(630, 50),
                 Location = new Point(10, 5),
@@ -107,7 +114,7 @@ namespace KairosEDA
                         {
                             g.FillEllipse(brush, 8, 8, 80, 80);
                         }
-                        using (Font f = new Font("Segoe UI", 36, FontStyle.Bold))
+                        using (Font f = new Font("Tahoma", 30, FontStyle.Bold))
                         using (SolidBrush textBrush = new SolidBrush(Color.White))
                         {
                             StringFormat sf = new StringFormat();
@@ -192,7 +199,7 @@ namespace KairosEDA
             {
                 Dock = DockStyle.Bottom,
                 Height = 3,
-                BackColor = Color.FromArgb(119, 118, 151) // Purple accent
+                BackColor = SystemColors.ActiveCaption
             };
             this.Controls.Add(bottomBorder);
 

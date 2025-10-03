@@ -22,7 +22,7 @@ namespace KairosEDA
         private TreeView projectExplorer = null!;
 
         // Center Panel - Workflow Buttons and Progress
-        private FlowLayoutPanel workflowPanel = null!;
+    private FlowLayoutPanel workflowPanel = null!;
         private Panel progressPanel = null!;
 
         // Right Panel - Console and Reports
@@ -35,6 +35,8 @@ namespace KairosEDA
             InitializeComponent();
             InitializeManagers();
             ApplyClassicWindowsStyle();
+
+            this.Load += (s, e) => AdjustWorkflowStageWidths();
         }
 
         private void InitializeComponent()
@@ -285,8 +287,8 @@ namespace KairosEDA
                 Dock = DockStyle.Top,
                 Height = 20,
                 TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = SystemColors.ControlDark,
-                ForeColor = SystemColors.ControlText,
+                BackColor = SystemColors.ActiveCaption,
+                ForeColor = SystemColors.ActiveCaptionText,
                 Font = new Font("Tahoma", 8.25f, FontStyle.Bold),
                 Padding = new Padding(3, 2, 0, 0)
             };
@@ -351,8 +353,8 @@ namespace KairosEDA
                 Dock = DockStyle.Top,
                 Height = 20,
                 TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = SystemColors.ControlDark,
-                ForeColor = SystemColors.ControlText,
+                BackColor = SystemColors.ActiveCaption,
+                ForeColor = SystemColors.ActiveCaptionText,
                 Font = new Font("Tahoma", 8.25f, FontStyle.Bold),
                 Padding = new Padding(3, 2, 0, 0)
             };
@@ -373,16 +375,8 @@ namespace KairosEDA
             workflowContainer.Controls.Add(label);
             
             // Resize handler to adjust workflow button widths
-            workflowPanel.Resize += (s, e) =>
-            {
-                foreach (Control ctrl in workflowPanel.Controls)
-                {
-                    if (ctrl is WorkflowStageControl)
-                    {
-                        ctrl.Width = workflowPanel.ClientSize.Width - 20;
-                    }
-                }
-            };
+            workflowPanel.Resize += (s, e) => AdjustWorkflowStageWidths();
+            workflowPanel.HandleCreated += (s, e) => AdjustWorkflowStageWidths();
 
             // Create workflow stage buttons AFTER panel is added
             CreateWorkflowStage("1. Synthesis", "Converts RTL → Gate-level netlist", OnRunSynthesis, Color.FromArgb(70, 130, 180));
@@ -391,6 +385,7 @@ namespace KairosEDA
             CreateWorkflowStage("4. Clock Tree Synthesis", "Builds clock distribution network", OnRunCTS, Color.FromArgb(186, 85, 211));
             CreateWorkflowStage("5. Routing", "Connects all cells with metal layers", OnRunRouting, Color.FromArgb(220, 20, 60));
             CreateWorkflowStage("6. Verification (DRC/LVS)", "Checks design rules & layout vs schematic", OnRunVerification, Color.FromArgb(255, 215, 0));
+            AdjustWorkflowStageWidths();
             workflowSplitter.Panel1.Controls.Add(workflowContainer);
 
             // Add progress panel at the bottom in splitter Panel2
@@ -404,12 +399,32 @@ namespace KairosEDA
         {
             var stagePanel = new WorkflowStageControl(title, description, onClick, accentColor)
             {
-                Width = 350, // Fixed width that will be overridden by resize
-                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right,
-                Margin = new Padding(0, 0, 0, 5)
+                Margin = new Padding(0, 0, 0, 6)
             };
 
+            stagePanel.MinimumSize = new Size(320, stagePanel.Height);
+            stagePanel.MaximumSize = new Size(int.MaxValue, stagePanel.Height);
+            stagePanel.Width = Math.Max(320, workflowPanel.ClientSize.Width - 20);
+
             workflowPanel.Controls.Add(stagePanel);
+        }
+
+        private void AdjustWorkflowStageWidths()
+        {
+            if (workflowPanel == null)
+            {
+                return;
+            }
+
+            var targetWidth = Math.Max(320, workflowPanel.ClientSize.Width - 20);
+
+            foreach (Control ctrl in workflowPanel.Controls)
+            {
+                if (ctrl is WorkflowStageControl stage)
+                {
+                    stage.Width = targetWidth;
+                }
+            }
         }
 
         private void CreateProgressPanel()
@@ -427,8 +442,8 @@ namespace KairosEDA
                 Dock = DockStyle.Top,
                 Height = 20,
                 TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = SystemColors.ControlDark,
-                ForeColor = SystemColors.ControlText,
+                BackColor = SystemColors.ActiveCaption,
+                ForeColor = SystemColors.ActiveCaptionText,
                 Font = new Font("Tahoma", 8.25f, FontStyle.Bold),
                 Padding = new Padding(3, 2, 0, 0)
             };
