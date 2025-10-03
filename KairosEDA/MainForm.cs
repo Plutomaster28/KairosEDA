@@ -20,9 +20,17 @@ namespace KairosEDA
 
         // Left Panel - Project Explorer
         private TreeView projectExplorer = null!;
+    private Panel projectExplorerContainer = null!;
+    private bool isProjectExplorerPanning;
+    private bool projectExplorerPanActivated;
+    private Point projectExplorerPanLastPoint;
+    private int projectExplorerHorizontalRemainder;
+    private int projectExplorerVerticalRemainder;
+    private bool suppressProjectExplorerSelection;
 
         // Center Panel - Workflow Buttons and Progress
-    private FlowLayoutPanel workflowPanel = null!;
+        private FlowLayoutPanel workflowPanel = null!;
+        private SplitContainer workflowSplitter = null!;
         private Panel progressPanel = null!;
 
         // Right Panel - Console and Reports
@@ -82,7 +90,6 @@ namespace KairosEDA
             // Create controls
             CreateProjectExplorer();
             CreateWorkflowPanel();
-            CreateProgressPanel();
             CreateRightTabs();
         }
 
@@ -280,17 +287,17 @@ namespace KairosEDA
 
         private void CreateProjectExplorer()
         {
-            var panel = new Panel { Dock = DockStyle.Fill, BackColor = SystemColors.Window };
+            projectExplorerContainer = new Panel { Dock = DockStyle.Fill, BackColor = SystemColors.Control };
             var label = new Label
             {
                 Text = "Project Explorer",
                 Dock = DockStyle.Top,
-                Height = 20,
+                Height = 32,
                 TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = SystemColors.ActiveCaption,
                 ForeColor = SystemColors.ActiveCaptionText,
                 Font = new Font("Tahoma", 8.25f, FontStyle.Bold),
-                Padding = new Padding(3, 2, 0, 0)
+                Padding = new Padding(8, 6, 0, 6)
             };
 
             projectExplorer = new TreeView
@@ -301,6 +308,14 @@ namespace KairosEDA
                 ShowRootLines = true,
                 ImageList = new ImageList()
             };
+
+            projectExplorer.MouseDown += ProjectExplorer_MouseDown;
+            projectExplorer.MouseMove += ProjectExplorer_MouseMove;
+            projectExplorer.MouseUp += ProjectExplorer_MouseUp;
+            projectExplorer.MouseLeave += ProjectExplorer_MouseLeave;
+            projectExplorer.BeforeSelect += ProjectExplorer_BeforeSelect;
+
+            Win32Native.ApplyTreeViewTheme(projectExplorer);
 
             // Add sample project structure
             var rootNode = new TreeNode("Kairos Project");
@@ -323,15 +338,23 @@ namespace KairosEDA
             projectExplorer.Nodes.Add(rootNode);
             rootNode.Expand();
 
-            panel.Controls.Add(projectExplorer);
-            panel.Controls.Add(label);
-            mainSplitter.Panel1.Controls.Add(panel);
+            var treeHost = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = SystemColors.Window,
+                Padding = new Padding(10, 14, 10, 10)
+            };
+            treeHost.Controls.Add(projectExplorer);
+
+            projectExplorerContainer.Controls.Add(treeHost);
+            projectExplorerContainer.Controls.Add(label);
+            mainSplitter.Panel1.Controls.Add(projectExplorerContainer);
         }
 
         private void CreateWorkflowPanel()
         {
             // Create vertical splitter for workflow and progress
-            var workflowSplitter = new SplitContainer
+            workflowSplitter = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
@@ -345,18 +368,30 @@ namespace KairosEDA
             };
 
             // Workflow panel (top part)
-            var workflowContainer = new Panel { Dock = DockStyle.Fill, BackColor = SystemColors.Control };
-            
+            var workflowContainer = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = SystemColors.Control,
+                ColumnCount = 1,
+                RowCount = 2,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+            workflowContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            workflowContainer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            workflowContainer.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
             var label = new Label
             {
                 Text = "EDA Workflow",
-                Dock = DockStyle.Top,
-                Height = 20,
+                Dock = DockStyle.Fill,
+                Height = 28,
                 TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = SystemColors.ActiveCaption,
                 ForeColor = SystemColors.ActiveCaptionText,
                 Font = new Font("Tahoma", 8.25f, FontStyle.Bold),
-                Padding = new Padding(3, 2, 0, 0)
+                Padding = new Padding(8, 6, 0, 6),
+                Margin = new Padding(0)
             };
 
             workflowPanel = new FlowLayoutPanel
@@ -365,18 +400,23 @@ namespace KairosEDA
                 AutoScroll = true,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                Padding = new Padding(8),
+                Padding = new Padding(16, 28, 16, 20),
                 BackColor = SystemColors.Control,
-                AutoSize = false
+                AutoSize = false,
+                Margin = new Padding(0),
+                AutoScrollMargin = new Size(0, 24),
+                TabStop = true
             };
-            
-            // Add controls to container FIRST
-            workflowContainer.Controls.Add(workflowPanel);
-            workflowContainer.Controls.Add(label);
-            
-            // Resize handler to adjust workflow button widths
+
+            workflowPanel.MouseEnter += FocusWorkflowPanel;
+            workflowPanel.MouseWheel += WorkflowPanel_MouseWheel;
+            workflowPanel.PreviewKeyDown += WorkflowPanel_PreviewKeyDown;
+            workflowPanel.KeyDown += WorkflowPanel_KeyDown;
             workflowPanel.Resize += (s, e) => AdjustWorkflowStageWidths();
             workflowPanel.HandleCreated += (s, e) => AdjustWorkflowStageWidths();
+
+            workflowContainer.Controls.Add(label, 0, 0);
+            workflowContainer.Controls.Add(workflowPanel, 0, 1);
 
             // Create workflow stage buttons AFTER panel is added
             CreateWorkflowStage("1. Synthesis", "Converts RTL → Gate-level netlist", OnRunSynthesis, Color.FromArgb(70, 130, 180));
@@ -386,12 +426,13 @@ namespace KairosEDA
             CreateWorkflowStage("5. Routing", "Connects all cells with metal layers", OnRunRouting, Color.FromArgb(220, 20, 60));
             CreateWorkflowStage("6. Verification (DRC/LVS)", "Checks design rules & layout vs schematic", OnRunVerification, Color.FromArgb(255, 215, 0));
             AdjustWorkflowStageWidths();
+
             workflowSplitter.Panel1.Controls.Add(workflowContainer);
 
             // Add progress panel at the bottom in splitter Panel2
             CreateProgressPanel();
             workflowSplitter.Panel2.Controls.Add(progressPanel);
-            
+
             rightSplitter.Panel1.Controls.Add(workflowSplitter);
         }
 
@@ -399,7 +440,7 @@ namespace KairosEDA
         {
             var stagePanel = new WorkflowStageControl(title, description, onClick, accentColor)
             {
-                Margin = new Padding(0, 0, 0, 6)
+                Margin = new Padding(0, 0, 0, 10)
             };
 
             stagePanel.MinimumSize = new Size(320, stagePanel.Height);
@@ -407,6 +448,7 @@ namespace KairosEDA
             stagePanel.Width = Math.Max(320, workflowPanel.ClientSize.Width - 20);
 
             workflowPanel.Controls.Add(stagePanel);
+            AttachWorkflowScrollHandlers(stagePanel);
         }
 
         private void AdjustWorkflowStageWidths()
@@ -424,6 +466,331 @@ namespace KairosEDA
                 {
                     stage.Width = targetWidth;
                 }
+            }
+        }
+
+        private void FocusWorkflowPanel(object? sender, EventArgs e)
+        {
+            if (workflowPanel != null && workflowPanel.CanFocus)
+            {
+                workflowPanel.Focus();
+            }
+        }
+
+        private void WorkflowPanel_PreviewKeyDown(object? sender, PreviewKeyDownEventArgs e)
+        {
+            if (e.KeyCode == Keys.Up ||
+                e.KeyCode == Keys.Down ||
+                e.KeyCode == Keys.PageUp ||
+                e.KeyCode == Keys.PageDown ||
+                e.KeyCode == Keys.Home ||
+                e.KeyCode == Keys.End)
+            {
+                e.IsInputKey = true;
+            }
+        }
+
+        private void WorkflowPanel_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (workflowPanel == null)
+            {
+                return;
+            }
+
+            const int arrowStep = 60;
+            var viewportStep = Math.Max(arrowStep, workflowPanel.ClientSize.Height - 40);
+
+            switch (e.KeyCode)
+            {
+                case Keys.Down:
+                    ScrollWorkflowBy(arrowStep);
+                    e.Handled = true;
+                    break;
+                case Keys.Up:
+                    ScrollWorkflowBy(-arrowStep);
+                    e.Handled = true;
+                    break;
+                case Keys.PageDown:
+                    ScrollWorkflowBy(viewportStep);
+                    e.Handled = true;
+                    break;
+                case Keys.PageUp:
+                    ScrollWorkflowBy(-viewportStep);
+                    e.Handled = true;
+                    break;
+                case Keys.Home:
+                    ScrollWorkflowToTop();
+                    e.Handled = true;
+                    break;
+                case Keys.End:
+                    ScrollWorkflowToBottom();
+                    e.Handled = true;
+                    break;
+            }
+        }
+
+        private void WorkflowPanel_MouseWheel(object? sender, MouseEventArgs e)
+        {
+            HandleWorkflowMouseWheel(e);
+        }
+
+        private void WorkflowChild_MouseWheel(object? sender, MouseEventArgs e)
+        {
+            HandleWorkflowMouseWheel(e);
+        }
+
+        private void HandleWorkflowMouseWheel(MouseEventArgs e)
+        {
+            if (workflowPanel == null)
+            {
+                return;
+            }
+
+            var linesPerNotch = SystemInformation.MouseWheelScrollLines;
+            var stepPerNotch = linesPerNotch > 0 ? linesPerNotch * 20 : 80;
+            var delta = e.Delta > 0 ? -stepPerNotch : stepPerNotch;
+
+            ScrollWorkflowBy(delta);
+
+            if (e is HandledMouseEventArgs handled)
+            {
+                handled.Handled = true;
+            }
+        }
+
+        private void AttachWorkflowScrollHandlers(Control control)
+        {
+            control.MouseEnter += FocusWorkflowPanel;
+            control.MouseWheel += WorkflowChild_MouseWheel;
+
+            foreach (Control child in control.Controls)
+            {
+                AttachWorkflowScrollHandlers(child);
+            }
+        }
+
+        private void ScrollWorkflowBy(int delta)
+        {
+            if (workflowPanel == null)
+            {
+                return;
+            }
+
+            var scroll = workflowPanel.VerticalScroll;
+
+            if (scroll.Maximum <= scroll.Minimum && !scroll.Visible)
+            {
+                return;
+            }
+
+            var maxValue = Math.Max(scroll.Minimum, scroll.Maximum - scroll.LargeChange + 1);
+            var target = Math.Max(scroll.Minimum, Math.Min(scroll.Value + delta, maxValue));
+
+            if (target != scroll.Value)
+            {
+                scroll.Value = target;
+                workflowPanel.PerformLayout();
+            }
+        }
+
+        private void ScrollWorkflowToTop()
+        {
+            if (workflowPanel == null)
+            {
+                return;
+            }
+
+            var scroll = workflowPanel.VerticalScroll;
+
+            if (scroll.Maximum <= scroll.Minimum && !scroll.Visible)
+            {
+                return;
+            }
+
+            if (scroll.Value != scroll.Minimum)
+            {
+                scroll.Value = scroll.Minimum;
+                workflowPanel.PerformLayout();
+            }
+        }
+
+        private void ScrollWorkflowToBottom()
+        {
+            if (workflowPanel == null)
+            {
+                return;
+            }
+
+            var scroll = workflowPanel.VerticalScroll;
+
+            if (scroll.Maximum <= scroll.Minimum && !scroll.Visible)
+            {
+                return;
+            }
+
+            var maxValue = Math.Max(scroll.Minimum, scroll.Maximum - scroll.LargeChange + 1);
+
+            if (scroll.Value != maxValue)
+            {
+                scroll.Value = maxValue;
+                workflowPanel.PerformLayout();
+            }
+        }
+
+        private void ProjectExplorer_MouseDown(object? sender, MouseEventArgs e)
+        {
+            if (projectExplorer == null || e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            projectExplorer.Focus();
+            projectExplorer.Capture = true;
+            isProjectExplorerPanning = true;
+            projectExplorerPanActivated = false;
+            suppressProjectExplorerSelection = false;
+            projectExplorerPanLastPoint = e.Location;
+            projectExplorerHorizontalRemainder = 0;
+            projectExplorerVerticalRemainder = 0;
+        }
+
+        private void ProjectExplorer_MouseMove(object? sender, MouseEventArgs e)
+        {
+            if (!isProjectExplorerPanning)
+            {
+                return;
+            }
+
+            var deltaX = e.Location.X - projectExplorerPanLastPoint.X;
+            var deltaY = e.Location.Y - projectExplorerPanLastPoint.Y;
+
+            if (!projectExplorerPanActivated)
+            {
+                if (Math.Abs(deltaX) < 3 && Math.Abs(deltaY) < 3)
+                {
+                    return;
+                }
+
+                projectExplorerPanActivated = true;
+                projectExplorer.Cursor = Cursors.SizeAll;
+            }
+
+            projectExplorerPanLastPoint = e.Location;
+            ScrollProjectExplorer(deltaX, deltaY);
+        }
+
+        private void ProjectExplorer_MouseUp(object? sender, MouseEventArgs e)
+        {
+            StopProjectExplorerPan(projectExplorerPanActivated);
+        }
+
+        private void ProjectExplorer_MouseLeave(object? sender, EventArgs e)
+        {
+            if (isProjectExplorerPanning && (Control.MouseButtons & MouseButtons.Left) == 0)
+            {
+                StopProjectExplorerPan(projectExplorerPanActivated);
+            }
+        }
+
+        private void ProjectExplorer_BeforeSelect(object? sender, TreeViewCancelEventArgs e)
+        {
+            if (suppressProjectExplorerSelection)
+            {
+                e.Cancel = true;
+                suppressProjectExplorerSelection = false;
+            }
+        }
+
+        private void StopProjectExplorerPan(bool cancelSelection)
+        {
+            if (!isProjectExplorerPanning && !projectExplorerPanActivated)
+            {
+                return;
+            }
+
+            isProjectExplorerPanning = false;
+            projectExplorerPanActivated = false;
+            projectExplorerHorizontalRemainder = 0;
+            projectExplorerVerticalRemainder = 0;
+
+            if (projectExplorer != null)
+            {
+                projectExplorer.Capture = false;
+                projectExplorer.Cursor = Cursors.Default;
+            }
+
+            if (cancelSelection)
+            {
+                suppressProjectExplorerSelection = true;
+            }
+        }
+
+        private void ScrollProjectExplorer(int deltaX, int deltaY)
+        {
+            if (projectExplorer == null)
+            {
+                return;
+            }
+
+            projectExplorerHorizontalRemainder += deltaX;
+            projectExplorerVerticalRemainder += deltaY;
+
+            const int horizontalStepSize = 32;
+            var verticalStepSize = Math.Max(projectExplorer.ItemHeight, 18);
+
+            while (projectExplorerHorizontalRemainder >= horizontalStepSize)
+            {
+                Win32Native.ScrollTreeView(projectExplorer, 1, 0);
+                projectExplorerHorizontalRemainder -= horizontalStepSize;
+            }
+
+            while (projectExplorerHorizontalRemainder <= -horizontalStepSize)
+            {
+                Win32Native.ScrollTreeView(projectExplorer, -1, 0);
+                projectExplorerHorizontalRemainder += horizontalStepSize;
+            }
+
+            while (projectExplorerVerticalRemainder >= verticalStepSize)
+            {
+                MoveProjectExplorerByVisibleOffset(1);
+                projectExplorerVerticalRemainder -= verticalStepSize;
+            }
+
+            while (projectExplorerVerticalRemainder <= -verticalStepSize)
+            {
+                MoveProjectExplorerByVisibleOffset(-1);
+                projectExplorerVerticalRemainder += verticalStepSize;
+            }
+        }
+
+        private void MoveProjectExplorerByVisibleOffset(int offset)
+        {
+            if (projectExplorer?.TopNode == null || offset == 0)
+            {
+                return;
+            }
+
+            var currentTop = projectExplorer.TopNode;
+            var lastValid = currentTop;
+            var steps = Math.Abs(offset);
+
+            while (steps > 0 && lastValid != null)
+            {
+                var next = offset > 0 ? lastValid.NextVisibleNode : lastValid.PrevVisibleNode;
+                if (next == null)
+                {
+                    break;
+                }
+
+                lastValid = next;
+                steps--;
+            }
+
+            if (lastValid != null && lastValid != currentTop)
+            {
+                projectExplorer.BeginUpdate();
+                projectExplorer.TopNode = lastValid;
+                projectExplorer.EndUpdate();
             }
         }
 

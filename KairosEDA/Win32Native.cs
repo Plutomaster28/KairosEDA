@@ -160,6 +160,56 @@ namespace KairosEDA
             }
         }
 
+        /// <summary>
+        /// Scroll a TreeView control by the specified number of steps, emulating line-based panning.
+        /// </summary>
+        public static void ScrollTreeView(TreeView? treeView, int horizontalSteps, int verticalSteps)
+        {
+            if (treeView == null)
+            {
+                return;
+            }
+
+            var handle = treeView.Handle;
+            if (handle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            const int WM_HSCROLL = 0x114;
+            const int WM_VSCROLL = 0x115;
+            const int SB_LINELEFT = 0;
+            const int SB_LINERIGHT = 1;
+            const int SB_LINEUP = 0;
+            const int SB_LINEDOWN = 1;
+
+            void ScrollMessage(int message, int command, int count)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    SendMessage(handle, message, command, 0);
+                }
+            }
+
+            if (horizontalSteps > 0)
+            {
+                ScrollMessage(WM_HSCROLL, SB_LINELEFT, horizontalSteps);
+            }
+            else if (horizontalSteps < 0)
+            {
+                ScrollMessage(WM_HSCROLL, SB_LINERIGHT, -horizontalSteps);
+            }
+
+            if (verticalSteps > 0)
+            {
+                ScrollMessage(WM_VSCROLL, SB_LINEUP, verticalSteps);
+            }
+            else if (verticalSteps < 0)
+            {
+                ScrollMessage(WM_VSCROLL, SB_LINEDOWN, -verticalSteps);
+            }
+        }
+
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
     }
