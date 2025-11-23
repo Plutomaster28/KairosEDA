@@ -8,12 +8,9 @@ namespace KairosEDA
         [STAThread]
         static void Main()
         {
-            // Enable Windows 7 visual styles
+            // Enable visual styles for Windows XP+ look
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            
-            // Force Windows 7 Aero theme
-            Win32Native.SetWindowTheme();
             
             // Show splash screen (modal dialog)
             using (SplashScreen splash = new SplashScreen())

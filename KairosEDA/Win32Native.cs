@@ -212,5 +212,118 @@ namespace KairosEDA
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
+
+        // ===== Windows XP / VS.NET 2003 Gradient Rendering =====
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct TRIVERTEX
+        {
+            public int X;
+            public int Y;
+            public ushort Red;
+            public ushort Green;
+            public ushort Blue;
+            public ushort Alpha;
+
+            public TRIVERTEX(int x, int y, Color color)
+            {
+                X = x;
+                Y = y;
+                Red = (ushort)(color.R << 8);
+                Green = (ushort)(color.G << 8);
+                Blue = (ushort)(color.B << 8);
+                Alpha = 0;
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct GRADIENT_RECT
+        {
+            public uint UpperLeft;
+            public uint LowerRight;
+
+            public GRADIENT_RECT(uint upperLeft, uint lowerRight)
+            {
+                UpperLeft = upperLeft;
+                LowerRight = lowerRight;
+            }
+        }
+
+        [DllImport("msimg32.dll", EntryPoint = "GradientFill")]
+        public static extern bool GradientFill(
+            IntPtr hdc,
+            TRIVERTEX[] pVertex,
+            uint nVertex,
+            GRADIENT_RECT[] pMesh,
+            uint nMesh,
+            uint ulMode
+        );
+
+        public const int GRADIENT_FILL_RECT_H = 0x00000000; // Horizontal gradient
+        public const int GRADIENT_FILL_RECT_V = 0x00000001; // Vertical gradient
+
+        /// <summary>
+        /// Draw a Windows XP style horizontal gradient (like VS.NET 2003 toolbars)
+        /// </summary>
+        public static void DrawXpGradient(Graphics g, Rectangle bounds, Color startColor, Color endColor, bool vertical = false)
+        {
+            IntPtr hdc = g.GetHdc();
+            try
+            {
+                var verts = new TRIVERTEX[2];
+                verts[0] = new TRIVERTEX(bounds.Left, bounds.Top, startColor);
+                verts[1] = new TRIVERTEX(bounds.Right, bounds.Bottom, endColor);
+
+                var rects = new GRADIENT_RECT[1];
+                rects[0] = new GRADIENT_RECT(0, 1);
+
+                GradientFill(
+                    hdc,
+                    verts,
+                    (uint)verts.Length,
+                    rects,
+                    (uint)rects.Length,
+                    vertical ? (uint)GRADIENT_FILL_RECT_V : (uint)GRADIENT_FILL_RECT_H
+                );
+            }
+            finally
+            {
+                g.ReleaseHdc(hdc);
+            }
+        }
+
+        /// <summary>
+        /// Classic Windows XP Blue color scheme (Luna theme)
+        /// </summary>
+        public static class XpColors
+        {
+            // VS.NET 2003 / XP toolbar gradients
+            public static readonly Color ToolbarGradientStart = Color.FromArgb(158, 190, 245);  // Light blue
+            public static readonly Color ToolbarGradientEnd = Color.FromArgb(196, 218, 250);    // Lighter blue
+            
+            // XP Menu bar
+            public static readonly Color MenuBarStart = Color.FromArgb(158, 190, 245);
+            public static readonly Color MenuBarEnd = Color.FromArgb(196, 218, 250);
+            
+            // XP Title bar active
+            public static readonly Color TitleBarActiveStart = Color.FromArgb(0, 84, 227);
+            public static readonly Color TitleBarActiveEnd = Color.FromArgb(60, 141, 234);
+            
+            // XP Selection/Highlight
+            public static readonly Color SelectionStart = Color.FromArgb(255, 240, 207);
+            public static readonly Color SelectionEnd = Color.FromArgb(255, 213, 140);
+            
+            // XP Button hover
+            public static readonly Color ButtonHoverStart = Color.FromArgb(255, 240, 207);
+            public static readonly Color ButtonHoverEnd = Color.FromArgb(255, 213, 140);
+            
+            // XP Borders
+            public static readonly Color Border = Color.FromArgb(0, 60, 116);
+            public static readonly Color BorderLight = Color.FromArgb(127, 157, 185);
+            
+            // Status bar
+            public static readonly Color StatusBarStart = Color.FromArgb(218, 227, 243);
+            public static readonly Color StatusBarEnd = Color.FromArgb(196, 218, 250);
+        }
     }
 }
