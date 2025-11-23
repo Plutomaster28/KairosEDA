@@ -9,7 +9,7 @@ namespace KairosEDA
     public partial class MainForm : Form
     {
         private ProjectManager projectManager = null!;
-        private BackendSimulator backendSimulator = null!;
+        private EdaBackend edaBackend = null!;
 
         // Main UI Components
         private MenuStrip mainMenu = null!;
@@ -96,12 +96,12 @@ namespace KairosEDA
         private void InitializeManagers()
         {
             projectManager = new ProjectManager();
-            backendSimulator = new BackendSimulator();
+            edaBackend = new EdaBackend();
 
             // Wire up events
-            backendSimulator.LogReceived += OnLogReceived;
-            backendSimulator.ProgressChanged += OnProgressChanged;
-            backendSimulator.StageCompleted += OnStageCompleted;
+            edaBackend.LogReceived += OnLogReceived;
+            edaBackend.ProgressChanged += OnProgressChanged;
+            edaBackend.StageCompleted += OnStageCompleted;
         }
 
         private void ApplyClassicWindowsStyle()
@@ -178,6 +178,8 @@ namespace KairosEDA
 
             // Tools Menu
             var toolsMenu = new ToolStripMenuItem("&Tools");
+            toolsMenu.DropDownItems.Add("&Toolchain Setup...", null, OnToolchainSetup);
+            toolsMenu.DropDownItems.Add(new ToolStripSeparator());
             toolsMenu.DropDownItems.Add("&Timing Analysis", null, OnTimingAnalysis);
             toolsMenu.DropDownItems.Add("&Power Analysis", null, OnPowerAnalysis);
             toolsMenu.DropDownItems.Add("&DRC Check", null, OnDRCCheck);
@@ -1011,73 +1013,82 @@ namespace KairosEDA
         private void OnRunSynthesis(object? sender, EventArgs e)
         {
             LogMessage("=== Starting Synthesis ===", LogLevel.Stage);
-            backendSimulator.RunStage("synthesis", projectManager.CurrentProject);
+            edaBackend.RunStage("synthesis", projectManager.CurrentProject);
         }
 
         private void OnRunFloorplan(object? sender, EventArgs e)
         {
             LogMessage("=== Starting Floorplan ===", LogLevel.Stage);
-            backendSimulator.RunStage("floorplan", projectManager.CurrentProject);
+            edaBackend.RunStage("floorplan", projectManager.CurrentProject);
         }
 
         private void OnRunPlacement(object? sender, EventArgs e)
         {
             LogMessage("=== Starting Placement ===", LogLevel.Stage);
-            backendSimulator.RunStage("placement", projectManager.CurrentProject);
+            edaBackend.RunStage("placement", projectManager.CurrentProject);
         }
 
         private void OnRunCTS(object? sender, EventArgs e)
         {
             LogMessage("=== Starting Clock Tree Synthesis ===", LogLevel.Stage);
-            backendSimulator.RunStage("cts", projectManager.CurrentProject);
+            edaBackend.RunStage("cts", projectManager.CurrentProject);
         }
 
         private void OnRunRouting(object? sender, EventArgs e)
         {
             LogMessage("=== Starting Routing ===", LogLevel.Stage);
-            backendSimulator.RunStage("routing", projectManager.CurrentProject);
+            edaBackend.RunStage("routing", projectManager.CurrentProject);
         }
 
         private void OnRunVerification(object? sender, EventArgs e)
         {
             LogMessage("=== Starting Verification (DRC/LVS) ===", LogLevel.Stage);
-            backendSimulator.RunStage("verification", projectManager.CurrentProject);
+            edaBackend.RunStage("verification", projectManager.CurrentProject);
         }
 
         private void OnRunCompleteFlow(object? sender, EventArgs e)
         {
             LogMessage("=== Starting Complete EDA Flow ===", LogLevel.Stage);
-            backendSimulator.RunCompleteFlow(projectManager.CurrentProject);
+            edaBackend.RunCompleteFlow(projectManager.CurrentProject);
         }
 
         private void OnStopFlow(object? sender, EventArgs e)
         {
-            backendSimulator.Stop();
+            edaBackend.Stop();
             LogMessage("Flow stopped by user", LogLevel.Warning);
         }
 
         private void OnTimingAnalysis(object? sender, EventArgs e)
         {
             LogMessage("Running timing analysis...", LogLevel.Info);
-            backendSimulator.RunAnalysis("timing", projectManager.CurrentProject);
+            edaBackend.RunAnalysis("timing", projectManager.CurrentProject);
         }
 
         private void OnPowerAnalysis(object? sender, EventArgs e)
         {
             LogMessage("Running power analysis...", LogLevel.Info);
-            backendSimulator.RunAnalysis("power", projectManager.CurrentProject);
+            edaBackend.RunAnalysis("power", projectManager.CurrentProject);
         }
 
         private void OnDRCCheck(object? sender, EventArgs e)
         {
             LogMessage("Running DRC check...", LogLevel.Info);
-            backendSimulator.RunAnalysis("drc", projectManager.CurrentProject);
+            edaBackend.RunAnalysis("drc", projectManager.CurrentProject);
         }
 
         private void OnLVSCheck(object? sender, EventArgs e)
         {
             LogMessage("Running LVS check...", LogLevel.Info);
-            backendSimulator.RunAnalysis("lvs", projectManager.CurrentProject);
+            edaBackend.RunAnalysis("lvs", projectManager.CurrentProject);
+        }
+
+        private void OnToolchainSetup(object? sender, EventArgs e)
+        {
+            using var dialog = new ToolchainSetupDialog(edaBackend.Toolchain);
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                LogMessage("Toolchain configuration saved", LogLevel.Success);
+            }
         }
 
         private void OnViewGDS(object? sender, EventArgs e)
@@ -1200,7 +1211,7 @@ namespace KairosEDA
             reportGrid.Rows.Add(e.StageName, e.Metric, e.Value, e.Status);
         }
 
-        protected override void OnLoad(EventArgs e)
+        protected override async void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
             
@@ -1209,7 +1220,31 @@ namespace KairosEDA
             LogMessage("  Electronic Design Automation Suite", LogLevel.Info);
             LogMessage("===================================", LogLevel.Info);
             LogMessage("", LogLevel.Info);
-            LogMessage("Ready. Create a new project or open an existing one.", LogLevel.Success);
+            LogMessage("Integrated EDA toolchain: Yosys + OpenROAD + Magic + Netgen", LogLevel.Info);
+            LogMessage("", LogLevel.Info);
+
+            // Auto-detect tools on startup
+            LogMessage("Detecting EDA tools...", LogLevel.Info);
+            var detection = await edaBackend.DetectTools();
+            
+            if (detection.AllToolsFound)
+            {
+                LogMessage($"✓ All tools detected! Found: Yosys, OpenROAD, Magic, Netgen", LogLevel.Success);
+            }
+            else
+            {
+                LogMessage($"⚠ {detection.FoundCount}/4 tools found", LogLevel.Warning);
+                if (!detection.YosysFound) LogMessage("  - Yosys: Not found", LogLevel.Warning);
+                if (!detection.OpenRoadFound) LogMessage("  - OpenROAD: Not found", LogLevel.Warning);
+                if (!detection.MagicFound) LogMessage("  - Magic: Not found", LogLevel.Warning);
+                if (!detection.NetgenFound) LogMessage("  - Netgen: Not found", LogLevel.Warning);
+                LogMessage("", LogLevel.Info);
+                LogMessage("→ Go to Tools → Toolchain Setup to configure paths", LogLevel.Info);
+                LogMessage("→ Or use Docker for pre-configured toolchain", LogLevel.Info);
+            }
+
+            LogMessage("", LogLevel.Info);
+            LogMessage("Ready! Create a new project or open an existing one.", LogLevel.Success);
         }
 
         #endregion

@@ -8,16 +8,24 @@ A modern, user-friendly Windows GUI frontend for RTL-to-GDSII electronic design 
 
 ## 🎯 Overview
 
-Kairos EDA provides a comprehensive graphical interface for managing chip design workflows, from Verilog RTL to GDSII tape-out. This is the **frontend demonstration** - it shows how the application would look and feel, with backend calls simulated for demonstration purposes.
+Kairos EDA provides a comprehensive graphical interface for managing chip design workflows, from Verilog RTL to GDSII tape-out. **Now with real EDA tool integration!**
+
+The application integrates with industry-standard open-source tools:
+- **Yosys** for RTL synthesis
+- **OpenROAD** for place & route
+- **Magic** for DRC and layout
+- **Netgen** for LVS verification
 
 ### Key Features
 
+- **⚡ Real EDA Integration** - Direct integration with Yosys, OpenROAD, Magic, Netgen
 - **🎨 Windows 7 Aero Styling** - Native Windows 7 glass effects using Win32 API
-- **📊 Real-time Workflow Monitoring** - Live progress bars, logs, and statistics
+- **📊 Real-time Workflow Monitoring** - Live progress bars, logs, and tool output
 - **🔧 Project Management** - Save/load projects with all settings and history
 - **📈 Visualization** - Reports, timing analysis, and violation tracking
 - **🎓 Dual Mode Interface** - Beginner mode (guided) and Expert mode (full control)
-- **🔌 Backend Abstraction** - Future-proof API for swapping EDA tools
+- **� Docker Support** - Pre-configured toolchain for Windows users
+- **🔌 Cross-Platform** - Windows (via WSL/Docker), Linux, macOS
 
 ## 🏗️ Architecture
 
@@ -130,24 +138,38 @@ Key features:
 - System-rendered menu bars and toolbars
 - Native visual styles for all controls
 
-## 🔌 Backend Integration (Future)
+## ⚡ Backend Integration
 
-This frontend is designed to communicate with a backend service that handles actual EDA tool execution. The abstraction layer looks like:
+KairosEDA now includes **real EDA tool integration**! The backend executes actual synthesis, place & route, and verification flows.
 
 ```csharp
 // Frontend makes high-level calls
-BackendSimulator.RunStage("synthesis", projectConfig);
+edaBackend.RunStage("synthesis", project);
 
-// Backend translates to actual tools
-// yosys -c synth.tcl
-// openroad -exit placement.tcl
-// magic -noconsole -dnull drc.tcl
+// Backend generates and executes tool scripts
+// → yosys -s synthesis.ys
+// → openroad -exit placement.tcl
+// → magic -noconsole -dnull drc.tcl
 ```
 
-This allows swapping backend tools without changing the GUI:
-- Replace Yosys with proprietary synthesizer
-- Swap OpenROAD for commercial P&R tools
-- Use different PDKs without frontend changes
+### Supported Tools
+
+| Tool | Purpose | Status |
+|------|---------|--------|
+| **Yosys** | RTL Synthesis | ✅ Integrated |
+| **OpenROAD** | Place & Route | ✅ Integrated |
+| **Magic** | DRC / GDS | ✅ Integrated |
+| **Netgen** | LVS | ✅ Integrated |
+| **OpenSTA** | Timing Analysis | 🔄 Planned |
+| **KLayout** | GDS Viewer | 🔄 Planned |
+
+### Setup Options
+
+1. **Docker** (Recommended for Windows) - Pre-configured OpenLane container
+2. **WSL2** - Run Linux tools on Windows
+3. **Native** - Direct installation on Linux/macOS
+
+See [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md) for detailed setup instructions
 
 ## 🎓 Mode System
 
