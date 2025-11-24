@@ -40,18 +40,98 @@ namespace KairosEDA
 
         public MainForm()
         {
-            InitializeComponent();
-            InitializeManagers();
-            ApplyClassicWindowsStyle();
+            try
+            {
+                InitializeManagers();
+                InitializeComponent();
+                ApplyClassicWindowsStyle();
 
-            this.Load += (s, e) => AdjustWorkflowStageWidths();
+                this.Load += (s, e) => 
+                {
+                    AdjustWorkflowStageWidths();
+                    SetSplitterDistancesSafely();
+                };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error initializing MainForm:\n\n{ex.Message}\n\nStack:\n{ex.StackTrace}", 
+                    "Initialization Error", 
+                    MessageBoxButtons.OK, 
+                    MessageBoxIcon.Error);
+                throw;
+            }
+        }
+        
+        private void SetSplitterDistancesSafely()
+        {
+            try
+            {
+                // Wait for layout to complete before setting splitter distances
+                this.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        // Set main splitter (left panel = project explorer)
+                        if (mainSplitter != null && mainSplitter.Width > 0)
+                        {
+                            int desiredDistance = 250;
+                            int maxDistance = mainSplitter.Width - mainSplitter.Panel2MinSize - mainSplitter.SplitterWidth;
+                            int minDistance = mainSplitter.Panel1MinSize;
+                            
+                            if (maxDistance > minDistance)
+                            {
+                                mainSplitter.SplitterDistance = Math.Max(minDistance, Math.Min(desiredDistance, maxDistance));
+                            }
+                        }
+                        
+                        // Set right splitter (center = workflow, right = console)
+                        if (rightSplitter != null && rightSplitter.Width > 0)
+                        {
+                            int desiredDistance = 650;
+                            int maxDistance = rightSplitter.Width - rightSplitter.Panel2MinSize - rightSplitter.SplitterWidth;
+                            int minDistance = rightSplitter.Panel1MinSize;
+                            
+                            if (maxDistance > minDistance)
+                            {
+                                rightSplitter.SplitterDistance = Math.Max(minDistance, Math.Min(desiredDistance, maxDistance));
+                            }
+                        }
+                        
+                        // Set workflow splitter (top = workflow buttons, bottom = progress panel)
+                        if (workflowSplitter != null && workflowSplitter.Height > 0)
+                        {
+                            int desiredDistance = 480;
+                            int maxDistance = workflowSplitter.Height - workflowSplitter.Panel2MinSize - workflowSplitter.SplitterWidth;
+                            int minDistance = workflowSplitter.Panel1MinSize;
+                            
+                            if (maxDistance > minDistance)
+                            {
+                                workflowSplitter.SplitterDistance = Math.Max(minDistance, Math.Min(desiredDistance, maxDistance));
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // If setting splitter distances fails, just use defaults
+                    }
+                }));
+            }
+            catch
+            {
+                // Ignore errors - splitters will use default 50/50 split
+            }
         }
 
         private void InitializeComponent()
         {
+            this.SuspendLayout();
+            
             this.Text = "Kairos EDA - Electronic Design Automation Suite";
             this.Size = new Size(1400, 900);
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+            // Use DPI auto-scaling so controls and client area scale correctly on high-DPI displays
+            this.AutoScaleMode = AutoScaleMode.Dpi;
             
             // Load custom icon
             try
@@ -74,23 +154,29 @@ namespace KairosEDA
             this.BackColor = SystemColors.Control; // Classic Windows gray
             this.MinimumSize = new Size(1200, 700);
             this.Font = new Font("Tahoma", 8.25f); // Classic Windows font
+            this.Padding = new Padding(0); // Let controls dock naturally to edges
+            this.ClientSize = new Size(1400, 900); // Use ClientSize for interior dimensions
 
-            // Create menu
+            // CRITICAL: Add controls in correct docking order!
+            // 1. Menu (Dock.Top) - goes first
             CreateMenu();
 
-            // Create toolbar
+            // 2. Toolbar (Dock.Top) - goes under menu
             CreateToolbar();
 
-            // Create status bar
+            // 3. Status bar (Dock.Bottom) - goes to bottom
             CreateStatusBar();
 
-            // Create main splitter (3-panel layout)
+            // 4. Main content (Dock.Fill) - fills remaining space
             CreateMainLayout();
 
-            // Create controls
+            // 5. Populate panels with content
             CreateProjectExplorer();
             CreateWorkflowPanel();
             CreateRightTabs();
+            
+            this.ResumeLayout(false);
+            this.PerformLayout();
         }
 
         private void InitializeManagers()
@@ -143,6 +229,7 @@ namespace KairosEDA
         {
             mainMenu = new MenuStrip
             {
+                Dock = DockStyle.Top,
                 BackColor = SystemColors.MenuBar,
                 RenderMode = ToolStripRenderMode.System
             };
@@ -215,6 +302,7 @@ namespace KairosEDA
         {
             mainToolbar = new ToolStrip
             {
+                Dock = DockStyle.Top,
                 ImageScalingSize = new Size(24, 24),
                 RenderMode = ToolStripRenderMode.System,
                 GripStyle = ToolStripGripStyle.Hidden
@@ -235,7 +323,7 @@ namespace KairosEDA
 
         private ToolStripButton CreateToolButton(string text, string tooltip, EventHandler onClick)
         {
-            return new ToolStripButton
+            var button = new ToolStripButton
             {
                 Text = text,
                 ToolTipText = tooltip,
@@ -243,12 +331,15 @@ namespace KairosEDA
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 AutoSize = true
             };
+            button.Click += onClick; // Wire up the click handler!
+            return button;
         }
 
         private void CreateStatusBar()
         {
             statusBar = new StatusStrip
             {
+                Dock = DockStyle.Bottom,
                 RenderMode = ToolStripRenderMode.System
             };
 
@@ -265,36 +356,45 @@ namespace KairosEDA
             mainSplitter = new SplitContainer
             {
                 Dock = DockStyle.Fill,
-                SplitterDistance = 220,
-                BorderStyle = BorderStyle.Fixed3D,
+                BorderStyle = BorderStyle.None, // No border - prevents content from being cut off
                 SplitterWidth = 5,
-                BackColor = SystemColors.Control,
-                IsSplitterFixed = false // Allow user to resize
+                BackColor = SystemColors.ControlDark,
+                IsSplitterFixed = false, // Allow user to resize
+                Panel1MinSize = 100,
+                Panel2MinSize = 100
             };
 
             // Right splitter: Center (Workflow) | Right (Console/Reports)
             rightSplitter = new SplitContainer
             {
                 Dock = DockStyle.Fill,
-                SplitterDistance = 380,
-                BorderStyle = BorderStyle.Fixed3D,
+                BorderStyle = BorderStyle.None, // No border - prevents content from being cut off
                 SplitterWidth = 5,
-                BackColor = SystemColors.Control,
-                IsSplitterFixed = false // Allow user to resize
+                BackColor = SystemColors.ControlDark,
+                IsSplitterFixed = false, // Allow user to resize
+                Panel1MinSize = 100,
+                Panel2MinSize = 100
             };
 
+            // Add nested structure while layout is suspended
             mainSplitter.Panel2.Controls.Add(rightSplitter);
             this.Controls.Add(mainSplitter);
         }
 
         private void CreateProjectExplorer()
         {
-            projectExplorerContainer = new Panel { Dock = DockStyle.Fill, BackColor = SystemColors.Control };
+            projectExplorerContainer = new Panel 
+            { 
+                Dock = DockStyle.Fill, 
+                BackColor = SystemColors.Control,
+                Padding = new Padding(0) // No inner padding
+            };
+            
             var label = new Label
             {
                 Text = "Project Explorer",
                 Dock = DockStyle.Top,
-                Height = 32,
+                Height = 28,
                 TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = SystemColors.ActiveCaption,
                 ForeColor = SystemColors.ActiveCaptionText,
@@ -344,7 +444,7 @@ namespace KairosEDA
             {
                 Dock = DockStyle.Fill,
                 BackColor = SystemColors.Window,
-                Padding = new Padding(10, 14, 10, 10)
+                Padding = new Padding(5, 5, 5, 5) // Add padding to keep tree away from borders
             };
             treeHost.Controls.Add(projectExplorer);
 
@@ -360,7 +460,6 @@ namespace KairosEDA
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterDistance = 480, // Workflow takes more space
                 BorderStyle = BorderStyle.None,
                 SplitterWidth = 5,
                 BackColor = SystemColors.Control,
@@ -402,11 +501,11 @@ namespace KairosEDA
                 AutoScroll = true,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                Padding = new Padding(16, 28, 16, 20),
+                Padding = new Padding(12, 12, 12, 12), // More padding to keep content away from borders
                 BackColor = SystemColors.Control,
                 AutoSize = false,
                 Margin = new Padding(0),
-                AutoScrollMargin = new Size(0, 24),
+                AutoScrollMargin = new Size(0, 10),
                 TabStop = true
             };
 
@@ -442,12 +541,12 @@ namespace KairosEDA
         {
             var stagePanel = new WorkflowStageControl(title, description, onClick, accentColor)
             {
-                Margin = new Padding(0, 0, 0, 10)
+                Margin = new Padding(0, 0, 0, 8)
             };
 
-            stagePanel.MinimumSize = new Size(320, stagePanel.Height);
+            stagePanel.MinimumSize = new Size(300, stagePanel.Height);
             stagePanel.MaximumSize = new Size(int.MaxValue, stagePanel.Height);
-            stagePanel.Width = Math.Max(320, workflowPanel.ClientSize.Width - 20);
+            stagePanel.Width = Math.Max(300, workflowPanel.ClientSize.Width - 24); // Account for padding
 
             workflowPanel.Controls.Add(stagePanel);
             AttachWorkflowScrollHandlers(stagePanel);
@@ -460,7 +559,7 @@ namespace KairosEDA
                 return;
             }
 
-            var targetWidth = Math.Max(320, workflowPanel.ClientSize.Width - 20);
+            var targetWidth = Math.Max(300, workflowPanel.ClientSize.Width - 24); // Account for padding
 
             foreach (Control ctrl in workflowPanel.Controls)
             {

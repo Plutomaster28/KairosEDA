@@ -4,11 +4,13 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <AssemblyName>KairosEDA</AssemblyName>
     <RootNamespace>KairosEDA</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app_resources\icon\seadrive_icon.ico</ApplicationIcon>
+    <StartupObject>KairosEDA.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>

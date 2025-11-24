@@ -37,11 +37,11 @@ namespace KairosEDA
 
         private void InitializeComponent()
         {
-            // Form settings - Classic Windows style
+            // Form settings - Classic Windows 95 style
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new Size(650, 380);
-            this.BackColor = SystemColors.Control;
+            this.Size = new Size(650, 400);
+            this.BackColor = Color.FromArgb(192, 192, 192); // #C0C0C0
             this.ControlBox = false;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -60,12 +60,23 @@ namespace KairosEDA
             }
             catch { }
 
-            // Header panel - Classic Windows blue
+            // Header panel - Windows 95 blue gradient style
             Panel headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 60,
-                BackColor = SystemColors.ActiveCaption
+                Height = 80,
+                BackColor = Color.FromArgb(0, 0, 128) // Navy blue
+            };
+            headerPanel.Paint += (s, e) =>
+            {
+                using (LinearGradientBrush brush = new LinearGradientBrush(
+                    headerPanel.ClientRectangle,
+                    Color.FromArgb(0, 0, 128),
+                    Color.FromArgb(16, 132, 208),
+                    LinearGradientMode.Horizontal))
+                {
+                    e.Graphics.FillRectangle(brush, headerPanel.ClientRectangle);
+                }
             };
             this.Controls.Add(headerPanel);
 
@@ -73,22 +84,50 @@ namespace KairosEDA
             Label titleLabel = new Label
             {
                 Text = "KAIROS EDA",
-                Font = new Font("Tahoma", 24, FontStyle.Bold),
-                ForeColor = SystemColors.ActiveCaptionText,
+                Font = new Font("Arial", 32, FontStyle.Bold),
+                ForeColor = Color.White,
                 AutoSize = false,
-                Size = new Size(630, 50),
-                Location = new Point(10, 5),
+                Size = new Size(630, 45),
+                Location = new Point(10, 10),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
             headerPanel.Controls.Add(titleLabel);
+            
+            // Subtitle in header
+            Label subtitleHeader = new Label
+            {
+                Text = "Electronic Design Automation Suite",
+                Font = new Font("MS Sans Serif", 10f),
+                ForeColor = Color.White,
+                AutoSize = false,
+                Size = new Size(630, 20),
+                Location = new Point(10, 55),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            headerPanel.Controls.Add(subtitleHeader);
 
-            // Icon/Logo area
+            // Icon/Logo area with sunken border
+            Panel iconPanel = new Panel
+            {
+                Location = new Point(30, 100),
+                Size = new Size(120, 120),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.None
+            };
+            iconPanel.Paint += (s, e) =>
+            {
+                // Draw sunken 3D border
+                ControlPaint.DrawBorder3D(e.Graphics, iconPanel.ClientRectangle, Border3DStyle.Sunken);
+            };
+            this.Controls.Add(iconPanel);
+            
             logoPictureBox = new PictureBox
             {
-                Size = new Size(96, 96),
-                Location = new Point(30, 100),
-                BackColor = Color.Transparent,
+                Size = new Size(100, 100),
+                Location = new Point(10, 10),
+                BackColor = Color.White,
                 SizeMode = PictureBoxSizeMode.Zoom
             };
             
@@ -127,81 +166,103 @@ namespace KairosEDA
                 }
             }
             catch { }
-            this.Controls.Add(logoPictureBox);
+            iconPanel.Controls.Add(logoPictureBox);
 
-            // Subtitle
-            Label subtitleLabel = new Label
+            // Info panel with sunken border
+            Panel infoPanel = new Panel
             {
-                Text = "Electronic Design Automation Suite",
-                Font = new Font("Tahoma", 10f, FontStyle.Bold),
-                ForeColor = SystemColors.WindowText,
-                AutoSize = false,
-                Size = new Size(480, 25),
-                Location = new Point(140, 110),
-                TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.Transparent
+                Location = new Point(170, 100),
+                Size = new Size(450, 120),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.None
             };
-            this.Controls.Add(subtitleLabel);
+            infoPanel.Paint += (s, e) =>
+            {
+                ControlPaint.DrawBorder3D(e.Graphics, infoPanel.ClientRectangle, Border3DStyle.Sunken);
+            };
+            this.Controls.Add(infoPanel);
 
-            // Description
+            // Description inside info panel
             Label descLabel = new Label
             {
-                Text = "RTL to GDSII workflow automation with\nSynthesis • Floorplanning • Placement\nClock Tree Synthesis • Routing • Verification",
-                Font = new Font("Tahoma", 8.25f),
-                ForeColor = SystemColors.ControlText,
+                Text = "RTL to GDSII Design Flow\n\n" +
+                       "• Full RTL to GDSII automated flow\n" +
+                       "• Synthesis, Floorplan, Place & Route\n" +
+                       "• Timing and Power Analysis\n" +
+                       "• DRC/LVS Verification\n" +
+                       "• Open Source PDK Support",
+                Font = new Font("MS Sans Serif", 9f),
+                ForeColor = Color.Black,
                 AutoSize = false,
-                Size = new Size(480, 70),
-                Location = new Point(140, 140),
-                BackColor = Color.Transparent
+                Size = new Size(430, 100),
+                Location = new Point(10, 10),
+                BackColor = Color.White
             };
-            this.Controls.Add(descLabel);
-
-            // Progress Bar (Classic Windows style)
-            progressBar = new ProgressBar
-            {
-                Location = new Point(140, 220),
-                Size = new Size(480, 23),
-                Style = ProgressBarStyle.Marquee,
-                MarqueeAnimationSpeed = 20
-            };
-            this.Controls.Add(progressBar);
+            infoPanel.Controls.Add(descLabel);
 
             // Status Label
             statusLabel = new Label
             {
-                Text = "Loading application components...",
-                Font = new Font("Tahoma", 8.25f),
-                ForeColor = SystemColors.ControlText,
+                Text = "Starting up...",
+                Font = new Font("MS Sans Serif", 9f),
+                ForeColor = Color.Black,
                 AutoSize = false,
-                Size = new Size(480, 25),
-                Location = new Point(140, 248),
+                Size = new Size(590, 20),
+                Location = new Point(30, 240),
                 TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = Color.Transparent
             };
             this.Controls.Add(statusLabel);
 
+            // Progress Bar with sunken border panel
+            Panel progressPanel = new Panel
+            {
+                Location = new Point(30, 265),
+                Size = new Size(590, 28),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.None
+            };
+            progressPanel.Paint += (s, e) =>
+            {
+                ControlPaint.DrawBorder3D(e.Graphics, progressPanel.ClientRectangle, Border3DStyle.Sunken);
+            };
+            this.Controls.Add(progressPanel);
+            
+            progressBar = new ProgressBar
+            {
+                Location = new Point(3, 3),
+                Size = new Size(584, 22),
+                Style = ProgressBarStyle.Continuous,
+                Value = 0,
+                Maximum = 100
+            };
+            progressPanel.Controls.Add(progressBar);
+
             // Version Label
             versionLabel = new Label
             {
-                Text = "Version 1.0.0 • Build 2025.10.03 • .NET 8.0",
-                Font = new Font("Tahoma", 8.25f),
-                ForeColor = SystemColors.ControlDarkDark,
-                AutoSize = false,
-                Size = new Size(620, 20),
-                Location = new Point(15, 340),
-                TextAlign = ContentAlignment.MiddleCenter,
+                Text = "Version 1.0.0",
+                Font = new Font("MS Sans Serif", 8.25f),
+                ForeColor = Color.Black,
+                AutoSize = true,
+                Location = new Point(30, 310),
                 BackColor = Color.Transparent
             };
             this.Controls.Add(versionLabel);
-
-            // Border line at bottom
-            Panel bottomBorder = new Panel
+            
+            // Copyright
+            Label copyrightLabel = new Label
             {
-                Dock = DockStyle.Bottom,
-                Height = 3,
-                BackColor = SystemColors.ActiveCaption
+                Text = "© 2025 Kairos EDA Project",
+                Font = new Font("MS Sans Serif", 8.25f),
+                ForeColor = Color.Black,
+                AutoSize = false,
+                Size = new Size(200, 20),
+                Location = new Point(420, 310),
+                TextAlign = ContentAlignment.MiddleRight,
+                BackColor = Color.Transparent
             };
-            this.Controls.Add(bottomBorder);
+            this.Controls.Add(copyrightLabel);
 
             // Close timer (non-blocking)
             closeTimer = new System.Windows.Forms.Timer
@@ -214,23 +275,47 @@ namespace KairosEDA
         private void CloseTimer_Tick(object? sender, EventArgs e)
         {
             tickCount++;
+            int progress = tickCount * 10;
             
-            // Update status messages
+            if (progress <= 100)
+            {
+                progressBar.Value = Math.Min(progress, 100);
+            }
+            
+            // Update status messages with realistic loading steps
             switch (tickCount)
             {
                 case 1:
-                    statusLabel.Text = "Loading components...";
+                    statusLabel.Text = "Initializing application...";
                     break;
                 case 2:
-                    statusLabel.Text = "Initializing backend...";
+                    statusLabel.Text = "Loading core modules...";
                     break;
                 case 3:
-                    statusLabel.Text = "Preparing workspace...";
+                    statusLabel.Text = "Starting EDA backend...";
                     break;
                 case 4:
-                    statusLabel.Text = "Ready!";
+                    statusLabel.Text = "Loading project manager...";
                     break;
                 case 5:
+                    statusLabel.Text = "Initializing workflow engine...";
+                    break;
+                case 6:
+                    statusLabel.Text = "Loading toolchain interfaces...";
+                    break;
+                case 7:
+                    statusLabel.Text = "Checking PDK configurations...";
+                    break;
+                case 8:
+                    statusLabel.Text = "Preparing user interface...";
+                    break;
+                case 9:
+                    statusLabel.Text = "Finalizing startup...";
+                    break;
+                case 10:
+                    statusLabel.Text = "Ready!";
+                    break;
+                case 11:
                     closeTimer.Stop();
                     this.DialogResult = DialogResult.OK;
                     this.Close();

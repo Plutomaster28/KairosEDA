@@ -1,5 +1,4 @@
 using System;
-using System.Windows.Forms;
 
 namespace KairosEDA
 {
@@ -8,17 +7,19 @@ namespace KairosEDA
         [STAThread]
         static void Main()
         {
-            // Enable visual styles for Windows XP+ look
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            // Show WinForms splash screen
+            System.Windows.Forms.Application.EnableVisualStyles();
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
             
-            // Show splash screen (modal dialog)
-            using (SplashScreen splash = new SplashScreen())
+            using (var splash = new SplashScreen())
             {
                 splash.ShowDialog();
             }
             
-            Application.Run(new MainForm());
+            // Start WPF application
+            var app = new App();
+            app.InitializeComponent();
+            app.Run();
         }
     }
 }
