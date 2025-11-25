@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -17,6 +18,8 @@ namespace KairosEDA
         private ProjectManager? projectManager;
         private BackendSimulator? backend;
         private Dictionary<string, TextBox> openEditors = new Dictionary<string, TextBox>();
+        private WSLManager? wslManager;
+        private ToolchainValidator? toolchainValidator;
 
         public MainWindow()
         {
@@ -59,6 +62,11 @@ namespace KairosEDA
             try
             {
                 projectManager = new ProjectManager();
+                
+                // Initialize WSL manager
+                wslManager = new WSLManager();
+                toolchainValidator = new ToolchainValidator(wslManager);
+                
                 backend = new BackendSimulator();
                 backend.LogReceived += OnBackendLog;
                 backend.ProgressChanged += OnBackendProgress;
@@ -71,11 +79,62 @@ namespace KairosEDA
             }
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            statusLabel.Text = "Ready";
+            statusLabel.Text = "Initializing...";
             LogToConsole("Kairos EDA initialized successfully.");
+            LogToConsole("");
+            
+            // Validate toolchain asynchronously
+            await ValidateToolchainAsync();
+            
+            LogToConsole("");
             LogToConsole("Create or open a project to get started.");
+            statusLabel.Text = "Ready";
+        }
+
+        private async Task ValidateToolchainAsync()
+        {
+            if (wslManager == null || toolchainValidator == null)
+            {
+                LogToConsole("⚠ Backend initialization failed");
+                return;
+            }
+
+            LogToConsole("Validating EDA toolchain...");
+            
+            try
+            {
+                var mode = await toolchainValidator.ValidateToolchainAsync(LogToConsole);
+                
+                // Update status based on mode
+                switch (mode)
+                {
+                    case OperationMode.Standard:
+                        LogToConsole("");
+                        LogToConsole("✓ All core tools detected - Full functionality enabled");
+                        break;
+                    
+                    case OperationMode.Basic:
+                        LogToConsole("");
+                        LogToConsole("✓ OpenLane detected - Basic functionality enabled");
+                        LogToConsole("  Tip: Install OpenROAD/Yosys for more control");
+                        break;
+                    
+                    case OperationMode.Unavailable:
+                        LogToConsole("");
+                        LogToConsole("⚠ No EDA tools detected");
+                        LogToConsole("  To enable backend functionality:");
+                        LogToConsole("  1. Install WSL2 (wsl --install)");
+                        LogToConsole("  2. Install Docker in WSL");
+                        LogToConsole("  3. Pull OpenLane image OR install native tools");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogToConsole($"⚠ Toolchain validation error: {ex.Message}");
+            }
         }
 
         private void SetupProjectTreeEvents()
@@ -134,31 +193,13 @@ namespace KairosEDA
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                     FontFamily = new FontFamily("Consolas"),
                     FontSize = 12,
-                    Background = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
-                    Padding = new Thickness(5),
+                    Background = new SolidColorBrush(Colors.White),
+                    Foreground = new SolidColorBrush(Colors.Black),
+                    Padding = new Thickness(8),
                     BorderThickness = new Thickness(0)
                 };
 
-                // Wrap in sunken border
-                var border = new Border
-                {
-                    Margin = new Thickness(4),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = new LinearGradientBrush
-                    {
-                        StartPoint = new Point(0, 0),
-                        EndPoint = new Point(1, 1),
-                        GradientStops = new GradientStopCollection
-                        {
-                            new GradientStop(Color.FromRgb(128, 128, 128), 0),
-                            new GradientStop(Colors.White, 1)
-                        }
-                    },
-                    Background = new SolidColorBrush(Colors.White),
-                    Child = editor
-                };
-
-                newTab.Content = border;
+                newTab.Content = editor;
                 openEditors[filePath] = editor;
 
                 editorTabs.Items.Add(newTab);
@@ -238,8 +279,29 @@ namespace KairosEDA
                 if (openEditors.ContainsKey(filePath))
                 {
                     var editor = openEditors[filePath];
-                    var originalContent = File.ReadAllText(filePath);
-                    if (editor.Text != originalContent)
+                    
+                    // Check if file exists and compare content
+                    bool hasChanges = false;
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            var originalContent = File.ReadAllText(filePath);
+                            hasChanges = editor.Text != originalContent;
+                        }
+                        catch
+                        {
+                            // If we can't read the file, assume there are changes
+                            hasChanges = true;
+                        }
+                    }
+                    else
+                    {
+                        // New file that hasn't been saved yet - check if it has content
+                        hasChanges = !string.IsNullOrWhiteSpace(editor.Text);
+                    }
+
+                    if (hasChanges)
                     {
                         var result = MessageBox.Show(
                             $"Save changes to {Path.GetFileName(filePath)}?",
@@ -249,7 +311,25 @@ namespace KairosEDA
 
                         if (result == MessageBoxResult.Yes)
                         {
-                            SaveFile(filePath);
+                            // For new files, trigger Save As
+                            if (filePath.StartsWith(Path.GetTempPath()) || !File.Exists(filePath))
+                            {
+                                // Need to select tab first for Save As to work
+                                editorTabs.SelectedItem = tabToRemove;
+                                OnSaveFileAs(this, new RoutedEventArgs());
+                                
+                                // Check if user cancelled the Save As dialog
+                                // If the file is still in temp, they cancelled
+                                var currentTag = tabToRemove.Tag as string;
+                                if (currentTag != null && (currentTag.StartsWith(Path.GetTempPath()) || !File.Exists(currentTag)))
+                                {
+                                    return; // Don't close if Save As was cancelled
+                                }
+                            }
+                            else
+                            {
+                                SaveFile(filePath, showConfirmation: false);
+                            }
                         }
                         else if (result == MessageBoxResult.Cancel)
                         {
@@ -264,7 +344,7 @@ namespace KairosEDA
             }
         }
 
-        private void SaveFile(string filePath)
+        private void SaveFile(string filePath, bool showConfirmation = true)
         {
             if (openEditors.ContainsKey(filePath))
             {
@@ -272,8 +352,11 @@ namespace KairosEDA
                 {
                     File.WriteAllText(filePath, openEditors[filePath].Text);
                     LogToConsole($"Saved {Path.GetFileName(filePath)}");
-                    MessageBox.Show($"File saved successfully!", "Save File",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    if (showConfirmation)
+                    {
+                        MessageBox.Show($"File saved successfully!", "Save File",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -330,30 +413,13 @@ namespace KairosEDA
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 12,
-                Background = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
-                Padding = new Thickness(5),
+                Background = new SolidColorBrush(Colors.White),
+                Foreground = new SolidColorBrush(Colors.Black),
+                Padding = new Thickness(8),
                 BorderThickness = new Thickness(0)
             };
 
-            var border = new Border
-            {
-                Margin = new Thickness(4),
-                BorderThickness = new Thickness(2),
-                BorderBrush = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(1, 1),
-                    GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(Color.FromRgb(128, 128, 128), 0),
-                        new GradientStop(Colors.White, 1)
-                    }
-                },
-                Background = new SolidColorBrush(Colors.White),
-                Child = editor
-            };
-
-            newTab.Content = border;
+            newTab.Content = editor;
             openEditors[tempPath] = editor;
 
             editorTabs.Items.Add(newTab);
@@ -704,9 +770,30 @@ namespace KairosEDA
             statusLabel.Text = "Stopped";
         }
 
-        private void OnToolchainSetup(object sender, RoutedEventArgs e)
+        private async void OnToolchainSetup(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Toolchain Setup functionality - to be implemented", "Toolchain Setup");
+            if (toolchainValidator == null || wslManager == null)
+            {
+                MessageBox.Show("Toolchain validator not initialized", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            LogToConsole("Re-validating toolchain...");
+            buildOutput.Text = "Toolchain Validation\n" + new string('=', 50) + "\n\n";
+            
+            await toolchainValidator.ValidateToolchainAsync((msg) =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    buildOutput.AppendText(msg + "\n");
+                    buildOutput.ScrollToEnd();
+                });
+            });
+
+            string summary = toolchainValidator.GetSummary();
+            MessageBox.Show(summary, "Toolchain Status", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void OnTimingAnalysis(object sender, RoutedEventArgs e)
