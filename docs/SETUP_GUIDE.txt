@@ -79,7 +79,38 @@ Check if OpenROAD works:
     openroad -version
 
 ───────────────────────────────────────────────────────────────────────────────
- STEP 4: Install Sky130 PDK (Process Design Kit)
+ STEP 4: Install OpenSTA (Static Timing Analysis)
+───────────────────────────────────────────────────────────────────────────────
+
+OpenSTA is recommended for timing analysis. In WSL:
+
+Method 1 - Via apt (easiest, if available):
+    
+    sudo apt install -y opensta
+
+Method 2 - Build from source:
+    
+    # Install dependencies
+    sudo apt install -y git cmake gcc g++ tcl-dev swig bison flex
+    
+    # Clone and build
+    git clone https://github.com/parallaxsw/OpenSTA.git
+    cd OpenSTA
+    mkdir build
+    cd build
+    cmake -DCUDD_DIR=<CUDD_INSTALL_DIR> ..
+    make
+    sudo make install
+
+Note: If you don't have CUDD installed, you can omit -DCUDD_DIR flag and it will 
+      build without BDD support (which is fine for most uses).
+
+Check if it works:
+
+    sta -version
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 5: Install Sky130 PDK (Process Design Kit)
 ───────────────────────────────────────────────────────────────────────────────
 
 This is the actual chip fabrication rules we'll use. In WSL:
@@ -103,7 +134,32 @@ Or the manual way:
 Your PDK should now be at: ~/pdk/sky130A
 
 ───────────────────────────────────────────────────────────────────────────────
- STEP 5: Test Everything Works
+ STEP 6: Install OpenROAD Flow Scripts (HIGHLY RECOMMENDED)
+───────────────────────────────────────────────────────────────────────────────
+
+These flow scripts make everything much easier and provide tested workflows. 
+KairosEDA can leverage these scripts to reduce your manual work significantly.
+
+In WSL:
+
+    # Clone the flow scripts
+    cd ~
+    git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts.git
+    cd OpenROAD-flow-scripts
+    
+    # Install dependencies
+    sudo ./etc/DependencyInstaller.sh
+    
+    # Build
+    ./build_openroad.sh --local
+
+The scripts will be at: ~/OpenROAD-flow-scripts/flow
+
+These provide pre-configured flows for synthesis, place & route, and verification
+that work out of the box. Trust me, you want this.
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 7: Test Everything Works
 ───────────────────────────────────────────────────────────────────────────────
 
 In WSL, create a test file to make sure Yosys works:
@@ -114,7 +170,7 @@ In WSL, create a test file to make sure Yosys works:
 If you see a bunch of output ending with "End of script." - YOU'RE GOOD! 
 
 ───────────────────────────────────────────────────────────────────────────────
- STEP 6: Configure KairosEDA
+ STEP 8: Configure KairosEDA
 ───────────────────────────────────────────────────────────────────────────────
 
 1. Launch KairosEDA (KairosEDA.exe)
@@ -123,13 +179,14 @@ If you see a bunch of output ending with "End of script." - YOU'RE GOOD!
    
    Yosys Path:     /usr/bin/yosys
    OpenROAD Path:  /usr/bin/openroad
+   OpenSTA Path:   /usr/bin/sta (or /usr/local/bin/sta if built from source)
    PDK Path:       ~/pdk/sky130A
    
 4. Click "Detect" to verify everything is found
 5. Click "Save"
 
 ───────────────────────────────────────────────────────────────────────────────
- STEP 7: Run Your First Design
+ STEP 9: Run Your First Design
 ───────────────────────────────────────────────────────────────────────────────
 
 1. File > New Project
@@ -165,15 +222,34 @@ Fix: Have you tried turning it off and on again? (Seriously, restart WSL)
      Then open Ubuntu again.
 
 ───────────────────────────────────────────────────────────────────────────────
- OPTIONAL: Magic & Netgen (For Verification)
+ OPTIONAL BUT RECOMMENDED: Magic & Netgen (For Verification)
 ───────────────────────────────────────────────────────────────────────────────
 
-If you want DRC/LVS checking (recommended but not required):
+If you want DRC/LVS checking (you probably do for real chips):
 
 In WSL:
     sudo apt install -y magic netgen
 
 That's it! These tools will be auto-detected by KairosEDA.
+
+───────────────────────────────────────────────────────────────────────────────
+ SUMMARY: What You Actually Need
+───────────────────────────────────────────────────────────────────────────────
+
+REQUIRED (KairosEDA won't work without these):
+  ✓ WSL2 with Ubuntu
+  ✓ Yosys (synthesis)
+  ✓ OpenROAD (place & route)
+  ✓ Sky130 PDK (chip fabrication rules)
+
+HIGHLY RECOMMENDED (Makes life much easier):
+  ✓ OpenSTA (timing analysis)
+  ✓ OpenROAD Flow Scripts (automated workflows - seriously, get this)
+  ✓ Magic & Netgen (verification)
+
+OPTIONAL (Nice to have):
+  - Docker (if you want containerized tools)
+  - Git (for version control of your designs)
 
 ───────────────────────────────────────────────────────────────────────────────
  NEED HELP?
