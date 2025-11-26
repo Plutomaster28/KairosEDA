@@ -98,7 +98,7 @@ Method 2 - Build from source:
     cd OpenSTA
     mkdir build
     cd build
-    cmake -DCUDD_DIR=<CUDD_INSTALL_DIR> ..
+    cmake ..
     make
     sudo make install
 
