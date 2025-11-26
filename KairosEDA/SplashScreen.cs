@@ -7,7 +7,6 @@ using System.Threading;
 namespace KairosEDA
 {
     /// <summary>
-    /// Windows 7 Aero styled splash screen
     /// </summary>
     public class SplashScreen : Form
     {
@@ -176,7 +175,7 @@ namespace KairosEDA
                        "• Timing and Power Analysis\n" +
                        "• DRC/LVS Verification\n" +
                        "• Open Source PDK Support",
-                Font = new Font("MS Sans Serif", 9f),
+                Font = new Font("MS Sans Serif", 8f),
                 ForeColor = Color.Black,
                 AutoSize = false,
                 Size = new Size(430, 100),

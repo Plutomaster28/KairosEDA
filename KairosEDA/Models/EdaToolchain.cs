@@ -83,17 +83,22 @@ namespace KairosEDA.Models
                 Config.OpenRoadPath = "openroad";
             }
 
-            // Check for OpenSTA
-            result.OpenStaFound = await CheckToolExistsWithPaths("sta", "-version", new[]
-            {
-                "sta", // Check PATH first
-                "~/OpenSTA/build/sta",
-                "/usr/local/bin/sta",
-                "/usr/bin/sta"
-            });
+            // Check for OpenSTA (usually built from source in WSL)
+            result.OpenStaFound = await CheckToolExistsInWSL("sta", "-version") ||
+                                  await CheckWSLFileExists("~/OpenSTA/build/sta") ||
+                                  await CheckWSLFileExists("/usr/local/bin/sta") ||
+                                  await CheckWSLFileExists("/usr/bin/sta");
             if (result.OpenStaFound && string.IsNullOrEmpty(Config.OpenStaPath))
             {
-                Config.OpenStaPath = "sta";
+                // Try to find the actual path
+                if (await CheckWSLFileExists("~/OpenSTA/build/sta"))
+                    Config.OpenStaPath = "~/OpenSTA/build/sta";
+                else if (await CheckWSLFileExists("/usr/local/bin/sta"))
+                    Config.OpenStaPath = "/usr/local/bin/sta";
+                else if (await CheckWSLFileExists("/usr/bin/sta"))
+                    Config.OpenStaPath = "/usr/bin/sta";
+                else
+                    Config.OpenStaPath = "sta";
             }
 
             // Check for Magic
@@ -155,6 +160,90 @@ namespace KairosEDA.Models
                 }
             }
             
+            return false;
+        }
+
+        private async Task<bool> CheckToolExistsInWSL(string command, string args)
+        {
+            try
+            {
+                // Check if tool exists in WSL by running: wsl which <command>
+                var whichPsi = new ProcessStartInfo
+                {
+                    FileName = "wsl",
+                    Arguments = $"which {command}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var whichProcess = Process.Start(whichPsi);
+                if (whichProcess != null)
+                {
+                    await whichProcess.WaitForExitAsync();
+                    
+                    // If 'which' found the command (exit code 0), verify it works
+                    if (whichProcess.ExitCode == 0)
+                    {
+                        // Now try to actually run the command with args to verify
+                        var testPsi = new ProcessStartInfo
+                        {
+                            FileName = "wsl",
+                            Arguments = $"{command} {args}",
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+
+                        using var testProcess = Process.Start(testPsi);
+                        if (testProcess != null)
+                        {
+                            await testProcess.WaitForExitAsync();
+                            // Some tools return non-zero for --version, so we just check if it ran
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // WSL not available or tool not found
+            }
+
+            return false;
+        }
+
+        private async Task<bool> CheckWSLFileExists(string path)
+        {
+            try
+            {
+                // Expand ~ to home directory and check if file exists in WSL
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "wsl",
+                    Arguments = $"test -f {path} && echo exists",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = Process.Start(psi);
+                if (process != null)
+                {
+                    var output = await process.StandardOutput.ReadToEndAsync();
+                    await process.WaitForExitAsync();
+                    
+                    return output.Trim() == "exists";
+                }
+            }
+            catch
+            {
+                // WSL not available or file check failed
+            }
+
             return false;
         }
 
