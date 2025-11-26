@@ -318,8 +318,8 @@
                 <MenuItem Header="_Expert Mode" Click="OnExpertMode"/>
             </MenuItem>
             <MenuItem Header="_Help">
-                <MenuItem Header="View _Documentation" Click="OnViewDocs"/>
-                <MenuItem Header="_Tutorials" Click="OnTutorials"/>
+                <MenuItem Header="_Documentation" Click="OnDocumentation"/>
+                <MenuItem Header="_Tutorials (YouTube)" Click="OnTutorials"/>
                 <Separator/>
                 <MenuItem Header="_About Kairos EDA..." Click="OnAbout"/>
             </MenuItem>

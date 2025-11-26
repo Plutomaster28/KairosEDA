@@ -1,0 +1,188 @@
+═══════════════════════════════════════════════════════════════════════════════
+   KairosEDA - Manual Setup Guide (Because We're Keeping It Simple)
+═══════════════════════════════════════════════════════════════════════════════
+
+Hey there! Welcome to the manual setup guide. We're not doing auto-install anymore 
+(too much hassle), so here's how to get everything running yourself.
+
+───────────────────────────────────────────────────────────────────────────────
+ PREREQUISITES (The Stuff You NEED)
+───────────────────────────────────────────────────────────────────────────────
+
+1. Windows 10/11 (or Windows 7 if you're feeling nostalgic)
+2. .NET 8.0 SDK - https://dotnet.microsoft.com/download
+3. WSL2 (Windows Subsystem for Linux) - We need this for the EDA tools
+4. Ubuntu 22.04 LTS in WSL2 (or any recent Ubuntu)
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 1: Install WSL2
+───────────────────────────────────────────────────────────────────────────────
+
+Open PowerShell as Administrator and run:
+
+    wsl --install
+
+Restart your computer (yes, you have to), then open PowerShell again and check:
+
+    wsl --list --verbose
+
+You should see Ubuntu running with version 2. If it says version 1, upgrade it:
+
+    wsl --set-version Ubuntu 2
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 2: Install Yosys (For Synthesis)
+───────────────────────────────────────────────────────────────────────────────
+
+Open Ubuntu (WSL) and run these commands:
+
+    sudo apt update
+    sudo apt install -y yosys
+
+Check if it worked:
+
+    yosys -version
+
+You should see something like "Yosys 0.xx" (any version is fine).
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 3: Install OpenROAD (For Place & Route)
+───────────────────────────────────────────────────────────────────────────────
+
+Still in WSL Ubuntu, install OpenROAD:
+
+Method 1 - The Easy Way (if available in apt):
+    
+    sudo apt install -y openroad
+
+Method 2 - The Docker Way (if apt doesn't have it):
+    
+    sudo apt install -y docker.io
+    sudo docker pull openroad/openroad
+
+Method 3 - Build from source (brave souls only):
+    
+    # Install dependencies
+    sudo apt install -y git cmake gcc g++ python3
+    
+    # Clone and build (this takes a while, grab a coffee)
+    git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD.git
+    cd OpenROAD
+    ./etc/DependencyInstaller.sh
+    mkdir build && cd build
+    cmake ..
+    make -j$(nproc)
+    sudo make install
+
+Check if OpenROAD works:
+
+    openroad -version
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 4: Install Sky130 PDK (Process Design Kit)
+───────────────────────────────────────────────────────────────────────────────
+
+This is the actual chip fabrication rules we'll use. In WSL:
+
+    # Install prerequisites
+    sudo apt install -y python3-pip
+    pip3 install volare
+    
+    # Download Sky130 PDK (this is big, ~2GB)
+    mkdir -p ~/pdk
+    cd ~/pdk
+    volare enable --pdk sky130 --pdk-root .
+
+Or the manual way:
+
+    cd ~/pdk
+    git clone https://github.com/google/skywater-pdk.git
+    cd skywater-pdk
+    git submodule update --init libraries/sky130_fd_sc_hd/latest
+
+Your PDK should now be at: ~/pdk/sky130A
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 5: Test Everything Works
+───────────────────────────────────────────────────────────────────────────────
+
+In WSL, create a test file to make sure Yosys works:
+
+    echo "module test(input a, b, output y); assign y = a & b; endmodule" > test.v
+    yosys -p "read_verilog test.v; synth; write_verilog test_synth.v"
+
+If you see a bunch of output ending with "End of script." - YOU'RE GOOD! 
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 6: Configure KairosEDA
+───────────────────────────────────────────────────────────────────────────────
+
+1. Launch KairosEDA (KairosEDA.exe)
+2. Go to Tools > Toolchain Setup
+3. Set these paths:
+   
+   Yosys Path:     /usr/bin/yosys
+   OpenROAD Path:  /usr/bin/openroad
+   PDK Path:       ~/pdk/sky130A
+   
+4. Click "Detect" to verify everything is found
+5. Click "Save"
+
+───────────────────────────────────────────────────────────────────────────────
+ STEP 7: Run Your First Design
+───────────────────────────────────────────────────────────────────────────────
+
+1. File > New Project
+2. Name it something cool (like "my_first_chip")
+3. Project > Import Verilog
+4. Select one of the example files (adder_4bit.v or counter_8bit.v)
+5. Project > Select PDK > Sky130
+6. Click the big Run button (▶)
+7. Watch the magic happen in the console!
+
+───────────────────────────────────────────────────────────────────────────────
+ TROUBLESHOOTING (When Things Go Wrong)
+───────────────────────────────────────────────────────────────────────────────
+
+Problem: "wsl: command not found"
+Fix: You need to enable WSL. Go to Windows Features, enable "Windows Subsystem 
+     for Linux" and "Virtual Machine Platform", restart.
+
+Problem: "yosys: command not found"
+Fix: Either it didn't install properly, or you're not in WSL. Make sure you're 
+     in Ubuntu terminal, not PowerShell.
+
+Problem: "Can't find PDK"
+Fix: Check that ~/pdk/sky130A exists in WSL. Run: ls ~/pdk/sky130A
+     If it's empty, re-run the PDK installation.
+
+Problem: "Permission denied" when running tools
+Fix: Run: chmod +x /usr/bin/yosys /usr/bin/openroad
+
+Problem: Everything is broken and nothing makes sense
+Fix: Have you tried turning it off and on again? (Seriously, restart WSL)
+     Run: wsl --shutdown
+     Then open Ubuntu again.
+
+───────────────────────────────────────────────────────────────────────────────
+ OPTIONAL: Magic & Netgen (For Verification)
+───────────────────────────────────────────────────────────────────────────────
+
+If you want DRC/LVS checking (recommended but not required):
+
+In WSL:
+    sudo apt install -y magic netgen
+
+That's it! These tools will be auto-detected by KairosEDA.
+
+───────────────────────────────────────────────────────────────────────────────
+ NEED HELP?
+───────────────────────────────────────────────────────────────────────────────
+
+- YouTube Tutorials: https://www.youtube.com/@miyamii_lmao
+- GitHub Issues: https://github.com/Plutomaster28/KairosEDA/issues
+- Or just read the error messages, they're usually pretty helpful
+
+Good luck, and happy chip designing!
+
+═══════════════════════════════════════════════════════════════════════════════

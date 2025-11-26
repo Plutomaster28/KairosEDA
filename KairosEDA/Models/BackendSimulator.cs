@@ -340,12 +340,27 @@ namespace KairosEDA.Models
     {
         public string Message { get; set; } = "";
         public LogLevel Level { get; set; }
+
+        public LogEventArgs() { }
+        public LogEventArgs(string message, LogLevel level)
+        {
+            Message = message;
+            Level = level;
+        }
     }
 
     public class ProgressEventArgs : EventArgs
     {
         public string StageName { get; set; } = "";
         public int Progress { get; set; }
+        public string Message { get; set; } = "";
+
+        public ProgressEventArgs() { }
+        public ProgressEventArgs(int progress, string message)
+        {
+            Progress = progress;
+            Message = message;
+        }
     }
 
     public class StageCompletedEventArgs : EventArgs
@@ -354,5 +369,22 @@ namespace KairosEDA.Models
         public string Metric { get; set; } = "";
         public string Value { get; set; } = "";
         public string Status { get; set; } = "";
+        public bool Success { get; set; }
+
+        public StageCompletedEventArgs() { }
+        public StageCompletedEventArgs(string stageName, bool success)
+        {
+            StageName = stageName;
+            Success = success;
+        }
+    }
+
+    public enum LogLevel
+    {
+        Info,
+        Warning,
+        Error,
+        Success,
+        Stage
     }
 }

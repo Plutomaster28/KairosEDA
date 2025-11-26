@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using KairosEDA.Controls;
 using KairosEDA.Models;
+using LogLevel = KairosEDA.Models.LogLevel;
 
 namespace KairosEDA
 {
@@ -273,8 +274,8 @@ namespace KairosEDA
 
             // Help Menu
             var helpMenu = new ToolStripMenuItem("&Help");
-            helpMenu.DropDownItems.Add("View &Documentation", null, OnViewDocs);
-            helpMenu.DropDownItems.Add("&Tutorials", null, OnTutorials);
+            helpMenu.DropDownItems.Add("&Documentation", null, OnDocumentation);
+            helpMenu.DropDownItems.Add("&Tutorials (YouTube)", null, OnTutorials);
             helpMenu.DropDownItems.Add(new ToolStripSeparator());
             helpMenu.DropDownItems.Add("&About Kairos EDA...", null, OnAbout);
 
@@ -1197,16 +1198,28 @@ namespace KairosEDA
                 "Mode Change", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        private void OnViewDocs(object? sender, EventArgs e)
+        private void OnDocumentation(object? sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "https://github.com/kairoseda/docs",
-                UseShellExecute = true
-            });
+            var docViewer = new Controls.DocumentationViewer();
+            docViewer.Show();
         }
 
-        private void OnTutorials(object? sender, EventArgs e) { }
+        private void OnTutorials(object? sender, EventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://www.youtube.com/@miyamii_lmao",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not open browser:\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
         private void OnAbout(object? sender, EventArgs e)
         {
@@ -1334,12 +1347,4 @@ namespace KairosEDA
         #endregion
     }
 
-    public enum LogLevel
-    {
-        Info,
-        Warning,
-        Error,
-        Success,
-        Stage
-    }
 }

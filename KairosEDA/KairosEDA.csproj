@@ -31,6 +31,7 @@
     <Content Include="app_resources\icon\seadrive_icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    
   </ItemGroup>
 
   <ItemGroup>

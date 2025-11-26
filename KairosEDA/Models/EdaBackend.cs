@@ -26,6 +26,28 @@ namespace KairosEDA.Models
             // Subscribe to tool output
             toolchain.OutputReceived += (s, e) => OnLog(e.Message, LogLevel.Info);
             toolchain.ErrorReceived += (s, e) => OnLog(e.Message, LogLevel.Warning);
+            
+            // Create workspace directory for runs
+            EnsureWorkspaceDirectory();
+        }
+
+        private void EnsureWorkspaceDirectory()
+        {
+            try
+            {
+                string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                string workspaceDir = Path.Combine(documentsPath, "KairosEDA_Directory");
+                
+                if (!Directory.Exists(workspaceDir))
+                {
+                    Directory.CreateDirectory(workspaceDir);
+                    OnLog($"✓ Created workspace directory: {workspaceDir}", LogLevel.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLog($"Warning: Could not create workspace directory: {ex.Message}", LogLevel.Warning);
+            }
         }
 
         public EdaToolchain Toolchain => toolchain;
@@ -145,16 +167,34 @@ namespace KairosEDA.Models
             OnLog("Stopping current operation...", LogLevel.Warning);
         }
 
+        public string GetProjectRunDirectory(Project project)
+        {
+            // Create timestamped run directory in KairosEDA_Directory
+            string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            string workspaceDir = Path.Combine(documentsPath, "KairosEDA_Directory");
+            string projectDir = Path.Combine(workspaceDir, project.Name);
+            string runDir = Path.Combine(projectDir, $"run_{DateTime.Now:yyyyMMdd_HHmmss}");
+            
+            Directory.CreateDirectory(runDir);
+            return runDir;
+        }
+
         private async Task ExecuteStage(string stageName, Project project, CancellationToken token)
         {
-            // Create project output directory
+            // Create project output directory in both project path and KairosEDA_Directory
             var outputDir = Path.Combine(project.Path, "kairos_output");
             Directory.CreateDirectory(outputDir);
 
             var stageDir = Path.Combine(outputDir, stageName.ToLower());
             Directory.CreateDirectory(stageDir);
 
+            // Also create in centralized workspace
+            string runDir = GetProjectRunDirectory(project);
+            string stageRunDir = Path.Combine(runDir, stageName.ToLower());
+            Directory.CreateDirectory(stageRunDir);
+
             OnLog($"Working directory: {stageDir}", LogLevel.Info);
+            OnLog($"Run directory: {stageRunDir}", LogLevel.Info);
             OnLog($"PDK: {project.PDK}", LogLevel.Info);
 
             ToolResult result;

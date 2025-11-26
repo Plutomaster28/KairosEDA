@@ -947,14 +947,27 @@ namespace KairosEDA
             MessageBox.Show("Expert Mode activated - full control", "Expert Mode");
         }
 
-        private void OnViewDocs(object sender, RoutedEventArgs e)
+        private void OnDocumentation(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Documentation viewer - to be implemented", "Documentation");
+            var docViewer = new Controls.DocumentationViewer();
+            docViewer.Show();
         }
 
         private void OnTutorials(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Tutorials - to be implemented", "Tutorials");
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://www.youtube.com/@miyamii_lmao",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not open browser:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OnAbout(object sender, RoutedEventArgs e)
