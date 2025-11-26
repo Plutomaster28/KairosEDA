@@ -133,23 +133,8 @@ namespace KairosEDA
             // Use DPI auto-scaling so controls and client area scale correctly on high-DPI displays
             this.AutoScaleMode = AutoScaleMode.Dpi;
             
-            // Load custom icon
-            try
-            {
-                string iconPath = System.IO.Path.Combine(Application.StartupPath, "app_resources", "icon", "seadrive_icon.ico");
-                if (System.IO.File.Exists(iconPath))
-                {
-                    this.Icon = new Icon(iconPath);
-                }
-                else
-                {
-                    this.Icon = SystemIcons.Application;
-                }
-            }
-            catch
-            {
-                this.Icon = SystemIcons.Application;
-            }
+            // Load custom icon from embedded resource
+            this.Icon = Helpers.ResourceHelper.GetApplicationIcon();
             
             this.BackColor = SystemColors.Control; // Classic Windows gray
             this.MinimumSize = new Size(1200, 700);

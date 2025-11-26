@@ -49,16 +49,8 @@ namespace KairosEDA
             this.DoubleBuffered = true;
             this.Text = "Kairos EDA";
             
-            // Set icon if available
-            try
-            {
-                string iconPath = System.IO.Path.Combine(Application.StartupPath, "app_resources", "icon", "seadrive_icon.ico");
-                if (System.IO.File.Exists(iconPath))
-                {
-                    this.Icon = new Icon(iconPath);
-                }
-            }
-            catch { }
+            // Set icon from embedded resource
+            this.Icon = Helpers.ResourceHelper.GetApplicationIcon();
 
             // Header panel - Windows 95 blue gradient style
             Panel headerPanel = new Panel
@@ -131,41 +123,34 @@ namespace KairosEDA
                 SizeMode = PictureBoxSizeMode.Zoom
             };
             
-            // Try to load icon
-            try
+            // Try to load icon from embedded resource
+            Bitmap? iconBitmap = Helpers.ResourceHelper.GetApplicationIconAsBitmap(96);
+            if (iconBitmap != null)
             {
-                string iconPath = System.IO.Path.Combine(Application.StartupPath, "app_resources", "icon", "seadrive_icon.ico");
-                if (System.IO.File.Exists(iconPath))
-                {
-                    using (Icon ico = new Icon(iconPath, 96, 96))
-                    {
-                        logoPictureBox.Image = ico.ToBitmap();
-                    }
-                }
-                else
-                {
-                    // Draw placeholder
-                    Bitmap bmp = new Bitmap(96, 96);
-                    using (Graphics g = Graphics.FromImage(bmp))
-                    {
-                        g.SmoothingMode = SmoothingMode.AntiAlias;
-                        using (SolidBrush brush = new SolidBrush(Color.FromArgb(0, 102, 204)))
-                        {
-                            g.FillEllipse(brush, 8, 8, 80, 80);
-                        }
-                        using (Font f = new Font("Tahoma", 30, FontStyle.Bold))
-                        using (SolidBrush textBrush = new SolidBrush(Color.White))
-                        {
-                            StringFormat sf = new StringFormat();
-                            sf.Alignment = StringAlignment.Center;
-                            sf.LineAlignment = StringAlignment.Center;
-                            g.DrawString("K", f, textBrush, new RectangleF(0, 0, 96, 96), sf);
-                        }
-                    }
-                    logoPictureBox.Image = bmp;
-                }
+                logoPictureBox.Image = iconBitmap;
             }
-            catch { }
+            else
+            {
+                // Draw placeholder
+                Bitmap bmp = new Bitmap(96, 96);
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    using (SolidBrush brush = new SolidBrush(Color.FromArgb(0, 102, 204)))
+                    {
+                        g.FillEllipse(brush, 8, 8, 80, 80);
+                    }
+                    using (Font f = new Font("Tahoma", 30, FontStyle.Bold))
+                    using (SolidBrush textBrush = new SolidBrush(Color.White))
+                    {
+                        StringFormat sf = new StringFormat();
+                        sf.Alignment = StringAlignment.Center;
+                        sf.LineAlignment = StringAlignment.Center;
+                        g.DrawString("K", f, textBrush, new RectangleF(0, 0, 96, 96), sf);
+                    }
+                }
+                logoPictureBox.Image = bmp;
+            }
             iconPanel.Controls.Add(logoPictureBox);
 
             // Info panel with sunken border

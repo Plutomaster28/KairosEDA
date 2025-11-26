@@ -1,52 +1,77 @@
-# KairosEDA Backend Integration Guide
+# Backend Integration - WSL Toolchain Setup
 
 ## Overview
 
-KairosEDA now integrates with real EDA tools for a complete ASIC design flow:
+KairosEDA now includes a **complete automated setup system** for installing EDA tools in WSL. The system builds **Yosys** and **OpenROAD** from source, providing full synthesis and place & route capabilities without requiring Docker.
 
-- **Yosys** - RTL synthesis
-- **OpenROAD** - Floorplanning, placement, CTS, routing
-- **Magic** - DRC checking and GDS generation
-- **Netgen** - LVS verification
+### What Gets Installed
+
+- **Yosys** - RTL synthesis tool
+- **OpenROAD** - Complete place & route solution (floorplanning, placement, CTS, routing, timing, power)
 
 ## Architecture
 
-### Backend Components
+### Components
 
-1. **EdaToolchain** (`Models/EdaToolchain.cs`)
-   - Manages tool paths and configuration
-   - Auto-detects tools in system PATH
-   - Executes tool processes and captures output
-   - Supports Docker-based toolchain (recommended for Windows)
+1. **WSLManager** (`Models/WSLManager.cs`)
+   - Bridge between Windows and WSL
+   - Executes commands via `wsl.exe`
+   - Path conversion: `C:\...` ↔ `/mnt/c/...`
+   - Real-time output capture
 
-2. **EdaBackend** (`Models/EdaBackend.cs`)
-   - Orchestrates the complete ASIC design flow
-   - Replaces the old `BackendSimulator` with real tool execution
-   - Manages project output directories
-   - Handles stage dependencies
+2. **ToolchainValidator** (`Models/ToolchainValidator.cs`)
+   - Detects installed EDA tools
+   - Three operation modes:
+     - **Unavailable**: No tools found - triggers setup wizard
+     - **Basic**: OpenLane Docker only (legacy support)
+     - **Standard**: Yosys + OpenROAD (native) - full functionality
+   - Priority detection paths:
+     - `$HOME/OpenROAD/build/bin/openroad`
+     - `$HOME/yosys`
+     - System PATH
 
-3. **ToolchainSetupDialog** (`Controls/ToolchainSetupDialog.cs`)
-   - GUI for configuring tool paths
-   - Auto-detection feature
-   - Docker configuration option
+3. **ToolchainInstaller** (`Models/ToolchainInstaller.cs`)
+   - Automated source compilation
+   - Progress tracking with events
+   - Two main installation methods:
+     - `InstallYosysFromSourceAsync()` - Builds Yosys from GitHub
+     - `InstallOpenROADFromSourceAsync()` - Builds OpenROAD with CMake
 
-## Setup Instructions
+4. **SetupWizard** (`Controls/SetupWizard.xaml`)
+   - User-friendly installation UI
+   - Windows 95 retro aesthetic
+   - Live console output during builds
+   - Progress bar with percentage
 
-### Option 1: Docker (Recommended for Windows)
+## Automated Setup Process
 
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-2. Pull the OpenLane container (includes all tools):
-   ```bash
-   docker pull efabless/openlane:latest
-   ```
-3. In KairosEDA, go to **Tools → Toolchain Setup**
-4. Check "Use Docker"
-5. Ensure Docker image is set to `efabless/openlane:latest`
-6. Click Save
+### First Launch Experience
 
-### Option 2: Native Installation
+1. KairosEDA starts and detects no toolchain
+2. Dialog prompt: **"Backend toolchain not found. Would you like to start the setup now?"**
+3. User clicks **"Yes"** to launch the setup wizard
+4. Installation proceeds automatically (30-40 minutes)
+5. On completion, KairosEDA enters **Standard Mode**
 
-#### Windows (WSL2)
+### Installation Steps
+
+#### 1. Yosys Build (~10 minutes)
+- **Source**: `https://github.com/YosysHQ/yosys.git`
+- **Build Method**: Makefile with parallel compilation
+- **Location**: `$HOME/yosys`
+- **Dependencies Installed**:
+  - build-essential, clang, bison, flex
+  - tcl-dev, libffi-dev, libreadline-dev
+  - python3, libboost-system-dev, libboost-python-dev
+  - graphviz, xdot, pkg-config
+
+**Build Commands:**
+```bash
+cd $HOME
+git clone --recurse-submodules https://github.com/YosysHQ/yosys.git
+cd yosys
+make -j$(nproc)
+sudo make install  # or: make install PREFIX=$HOME/.local
 
 1. Install WSL2 with Ubuntu:
    ```powershell

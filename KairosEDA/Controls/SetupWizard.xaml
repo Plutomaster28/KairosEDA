@@ -1,0 +1,209 @@
+<Window x:Class="KairosEDA.Controls.SetupWizard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KairosEDA - Backend Setup" 
+        Height="500" 
+        Width="600" 
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#C0C0C0">
+    
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#C0C0C0"/>
+            <Setter Property="BorderBrush" Value="#808080"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style x:Key="PanelStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#808080"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" 
+                   Text="🔧 EDA Toolchain Setup"
+                   FontSize="18" 
+                   FontWeight="Bold" 
+                   Margin="0,0,0,15"/>
+
+        <!-- Content Area -->
+        <Border Grid.Row="1" Style="{StaticResource PanelStyle}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="contentPanel">
+                    
+                    <!-- Welcome Page -->
+                    <StackPanel x:Name="welcomePage" Visibility="Visible">
+                        <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,10">
+                            Welcome to KairosEDA!
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,15">
+                            KairosEDA needs to set up the EDA toolchain backend to function.
+                            This is a one-time setup that will install the necessary tools in WSL.
+                        </TextBlock>
+                        
+                        <TextBlock FontWeight="Bold" Margin="0,0,0,5">
+                            What will be installed:
+                        </TextBlock>
+                        <TextBlock Margin="15,0,0,5">• Docker (container runtime)</TextBlock>
+                        <TextBlock Margin="15,0,0,5">• OpenLane (complete EDA flow)</TextBlock>
+                        <TextBlock Margin="15,0,0,15">• Additional tools (Yosys, OpenROAD if available)</TextBlock>
+                        
+                        <TextBlock FontWeight="Bold" Margin="0,0,0,5">
+                            Requirements:
+                        </TextBlock>
+                        <TextBlock Margin="15,0,0,5">• Windows 10 (version 1903+) or Windows 11</TextBlock>
+                        <TextBlock Margin="15,0,0,5">• WSL2 installed (we'll help if not installed)</TextBlock>
+                        <TextBlock Margin="15,0,0,5">• ~2-3 GB of disk space</TextBlock>
+                        <TextBlock Margin="15,0,0,15">• Internet connection for downloads</TextBlock>
+                        
+                        <Border Background="#FFFACD" BorderBrush="#FFA500" BorderThickness="1" Padding="10" Margin="0,10,0,0">
+                            <TextBlock TextWrapping="Wrap">
+                                ⏱️ This setup will take 10-15 minutes depending on your internet speed.
+                                You can continue using your computer during installation.
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Installation Page -->
+                    <StackPanel x:Name="installPage" Visibility="Collapsed">
+                        <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,10">
+                            Installing Toolchain...
+                        </TextBlock>
+                        
+                        <ProgressBar x:Name="progressBar" 
+                                     Height="25" 
+                                     Margin="0,0,0,10"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Value="0"/>
+                        
+                        <TextBlock x:Name="progressText" 
+                                   Text="Preparing installation..." 
+                                   Margin="0,0,0,10"
+                                   FontWeight="Bold"/>
+                        
+                        <Border Style="{StaticResource PanelStyle}" 
+                                Background="#F0F0F0" 
+                                MaxHeight="250">
+                            <ScrollViewer x:Name="logScrollViewer" 
+                                          VerticalScrollBarVisibility="Auto">
+                                <TextBox x:Name="installLog" 
+                                         IsReadOnly="True"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         FontFamily="Consolas"
+                                         FontSize="10"
+                                         TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Complete Page -->
+                    <StackPanel x:Name="completePage" Visibility="Collapsed">
+                        <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,10">
+                            Setup Complete!
+                        </TextBlock>
+                        
+                        <Border Background="#90EE90" BorderBrush="#228B22" BorderThickness="2" Padding="15" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock FontSize="16" FontWeight="Bold" Margin="0,0,0,5">
+                                    ✓ Installation Successful
+                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap">
+                                    All components have been installed successfully.
+                                    KairosEDA is ready to use!
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                        
+                        <TextBlock FontWeight="Bold" Margin="0,0,0,5">
+                            Installed Components:
+                        </TextBlock>
+                        <TextBlock x:Name="installedComponents" 
+                                   Margin="15,0,0,15"
+                                   TextWrapping="Wrap"/>
+                        
+                        <TextBlock TextWrapping="Wrap" Margin="0,10,0,0">
+                            Click "Finish" to start using KairosEDA.
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Error Page -->
+                    <StackPanel x:Name="errorPage" Visibility="Collapsed">
+                        <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,10">
+                            Setup Issues
+                        </TextBlock>
+                        
+                        <Border Background="#FFB6C1" BorderBrush="#DC143C" BorderThickness="2" Padding="15" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock FontSize="16" FontWeight="Bold" Margin="0,0,0,5">
+                                    ⚠ Installation Had Issues
+                                </TextBlock>
+                                <TextBlock x:Name="errorMessage" 
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <TextBlock FontWeight="Bold" Margin="0,0,0,5">
+                            What to do next:
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap" Margin="15,0,0,5">
+                            • Check the installation log above for details
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap" Margin="15,0,0,5">
+                            • You can try running the setup again
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap" Margin="15,0,0,15">
+                            • Visit our documentation for manual setup instructions
+                        </TextBlock>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Progress Info -->
+        <TextBlock Grid.Row="2" 
+                   x:Name="statusText"
+                   Text="Ready to begin setup"
+                   Margin="0,10,0,10"
+                   FontSize="11"
+                   Foreground="#606060"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right">
+            <Button x:Name="backButton" 
+                    Content="Back" 
+                    Width="80" 
+                    Margin="0,0,10,0"
+                    Click="BackButton_Click"
+                    Visibility="Collapsed"/>
+            <Button x:Name="cancelButton" 
+                    Content="Cancel" 
+                    Width="80" 
+                    Margin="0,0,10,0"
+                    Click="CancelButton_Click"/>
+            <Button x:Name="nextButton" 
+                    Content="Next" 
+                    Width="80" 
+                    Click="NextButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

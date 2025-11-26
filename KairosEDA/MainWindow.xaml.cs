@@ -124,10 +124,30 @@ namespace KairosEDA
                     case OperationMode.Unavailable:
                         LogToConsole("");
                         LogToConsole("⚠ No EDA tools detected");
-                        LogToConsole("  To enable backend functionality:");
-                        LogToConsole("  1. Install WSL2 (wsl --install)");
-                        LogToConsole("  2. Install Docker in WSL");
-                        LogToConsole("  3. Pull OpenLane image OR install native tools");
+                        LogToConsole("  KairosEDA can automatically set up the backend for you!");
+                        LogToConsole("  Click 'Tools → Toolchain Setup' to begin automatic installation");
+                        LogToConsole("");
+                        
+                        // Show friendly prompt to run setup wizard
+                        Dispatcher.Invoke(() =>
+                        {
+                            var result = MessageBox.Show(
+                                "KairosEDA needs to set up the EDA toolchain backend.\n\n" +
+                                "This is a one-time automated setup that will install:\n" +
+                                "• Docker (container runtime)\n" +
+                                "• OpenLane (complete EDA flow)\n" +
+                                "• Additional tools (Yosys, OpenROAD if available)\n\n" +
+                                "The setup takes about 10-15 minutes.\n\n" +
+                                "Would you like to start the setup now?",
+                                "Backend Setup Required",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Question);
+                            
+                            if (result == MessageBoxResult.Yes)
+                            {
+                                ShowSetupWizard();
+                            }
+                        });
                         break;
                 }
             }
@@ -779,7 +799,8 @@ namespace KairosEDA
                 return;
             }
 
-            LogToConsole("Re-validating toolchain...");
+            // First, validate current status
+            LogToConsole("Checking toolchain status...");
             buildOutput.Text = "Toolchain Validation\n" + new string('=', 50) + "\n\n";
             
             await toolchainValidator.ValidateToolchainAsync((msg) =>
@@ -791,9 +812,48 @@ namespace KairosEDA
                 });
             });
 
-            string summary = toolchainValidator.GetSummary();
-            MessageBox.Show(summary, "Toolchain Status", 
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            // If tools are missing, offer to run setup wizard
+            if (toolchainValidator.CurrentMode == OperationMode.Unavailable)
+            {
+                var result = MessageBox.Show(
+                    "No EDA tools detected. Would you like to run the automated setup wizard?",
+                    "Run Setup?",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                
+                if (result == MessageBoxResult.Yes)
+                {
+                    ShowSetupWizard();
+                }
+            }
+            else
+            {
+                // Show current status
+                string summary = toolchainValidator.GetSummary();
+                MessageBox.Show(summary, "Toolchain Status", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private async void ShowSetupWizard()
+        {
+            if (wslManager == null)
+            {
+                MessageBox.Show("WSL manager not initialized", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var wizard = new Controls.SetupWizard(wslManager);
+            bool? result = wizard.ShowDialog();
+
+            if (result == true)
+            {
+                // Setup completed successfully - re-validate toolchain
+                LogToConsole("");
+                LogToConsole("Setup completed! Re-validating toolchain...");
+                await ValidateToolchainAsync();
+            }
         }
 
         private void OnTimingAnalysis(object sender, RoutedEventArgs e)
