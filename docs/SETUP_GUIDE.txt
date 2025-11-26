@@ -60,7 +60,7 @@ Method 2 - The Docker Way (if apt doesn't have it):
     sudo apt install -y docker.io
     sudo docker pull openroad/openroad
 
-Method 3 - Build from source (brave souls only):
+Method 3 - Build from source (brave souls only) [preferred method]:
     
     # Install dependencies
     sudo apt install -y git cmake gcc g++ python3
