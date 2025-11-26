@@ -83,6 +83,19 @@ namespace KairosEDA.Models
                 Config.OpenRoadPath = "openroad";
             }
 
+            // Check for OpenSTA
+            result.OpenStaFound = await CheckToolExistsWithPaths("sta", "-version", new[]
+            {
+                "sta", // Check PATH first
+                "~/OpenSTA/build/sta",
+                "/usr/local/bin/sta",
+                "/usr/bin/sta"
+            });
+            if (result.OpenStaFound && string.IsNullOrEmpty(Config.OpenStaPath))
+            {
+                Config.OpenStaPath = "sta";
+            }
+
             // Check for Magic
             result.MagicFound = await CheckToolExists("magic", "--version");
             if (result.MagicFound && string.IsNullOrEmpty(Config.MagicPath))
@@ -126,6 +139,22 @@ namespace KairosEDA.Models
                 // Tool not found in PATH
             }
 
+            return false;
+        }
+
+        private async Task<bool> CheckToolExistsWithPaths(string command, string args, string[] possiblePaths)
+        {
+            // Try each path
+            foreach (var path in possiblePaths)
+            {
+                var expandedPath = path.Replace("~", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+                
+                if (await CheckToolExists(expandedPath, args))
+                {
+                    return true;
+                }
+            }
+            
             return false;
         }
 
@@ -408,6 +437,7 @@ namespace KairosEDA.Models
     {
         public string YosysPath { get; set; } = "";
         public string OpenRoadPath { get; set; } = "";
+        public string OpenStaPath { get; set; } = "";
         public string MagicPath { get; set; } = "";
         public string NetgenPath { get; set; } = "";
         public string PdkPath { get; set; } = "";
@@ -419,12 +449,13 @@ namespace KairosEDA.Models
     {
         public bool YosysFound { get; set; }
         public bool OpenRoadFound { get; set; }
+        public bool OpenStaFound { get; set; }
         public bool MagicFound { get; set; }
         public bool NetgenFound { get; set; }
 
-        public bool AllToolsFound => YosysFound && OpenRoadFound && MagicFound && NetgenFound;
+        public bool AllToolsFound => YosysFound && OpenRoadFound && OpenStaFound && MagicFound && NetgenFound;
         public int FoundCount => (YosysFound ? 1 : 0) + (OpenRoadFound ? 1 : 0) + 
-                                 (MagicFound ? 1 : 0) + (NetgenFound ? 1 : 0);
+                                 (OpenStaFound ? 1 : 0) + (MagicFound ? 1 : 0) + (NetgenFound ? 1 : 0);
     }
 
     public class ToolResult

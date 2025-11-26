@@ -1326,13 +1326,14 @@ namespace KairosEDA
             
             if (detection.AllToolsFound)
             {
-                LogMessage($"✓ All tools detected! Found: Yosys, OpenROAD, Magic, Netgen", LogLevel.Success);
+                LogMessage($"✓ All tools detected! Found: Yosys, OpenROAD, OpenSTA, Magic, Netgen", LogLevel.Success);
             }
             else
             {
-                LogMessage($"⚠ {detection.FoundCount}/4 tools found", LogLevel.Warning);
+                LogMessage($"⚠ {detection.FoundCount}/5 tools found", LogLevel.Warning);
                 if (!detection.YosysFound) LogMessage("  - Yosys: Not found", LogLevel.Warning);
                 if (!detection.OpenRoadFound) LogMessage("  - OpenROAD: Not found", LogLevel.Warning);
+                if (!detection.OpenStaFound) LogMessage("  - OpenSTA: Not found", LogLevel.Warning);
                 if (!detection.MagicFound) LogMessage("  - Magic: Not found", LogLevel.Warning);
                 if (!detection.NetgenFound) LogMessage("  - Netgen: Not found", LogLevel.Warning);
                 LogMessage("", LogLevel.Info);

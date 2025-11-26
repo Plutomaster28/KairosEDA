@@ -14,6 +14,7 @@ namespace KairosEDA.Controls
         private EdaToolchain toolchain;
         private TextBox txtYosysPath;
         private TextBox txtOpenRoadPath;
+        private TextBox txtOpenStaPath;
         private TextBox txtMagicPath;
         private TextBox txtNetgenPath;
         private TextBox txtPdkPath;
@@ -34,7 +35,7 @@ namespace KairosEDA.Controls
         private void InitializeComponents()
         {
             this.Text = "EDA Toolchain Setup";
-            this.Size = new Size(600, 520);
+            this.Size = new Size(600, 550);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -66,7 +67,7 @@ namespace KairosEDA.Controls
 
             var lblSubtitle = new Label
             {
-                Text = "Set paths to Yosys, OpenROAD, Magic, and Netgen. Leave blank to use PATH.",
+                Text = "Set paths to Yosys, OpenROAD, OpenSTA, Magic, and Netgen. Leave blank to use PATH.",
                 Location = new Point(15, y),
                 Size = new Size(550, 30),
                 ForeColor = SystemColors.GrayText
@@ -86,6 +87,13 @@ namespace KairosEDA.Controls
             txtOpenRoadPath = CreateTextBox(15 + labelWidth, y, textBoxWidth);
             panel.Controls.Add(txtOpenRoadPath);
             panel.Controls.Add(CreateBrowseButton(15 + labelWidth + textBoxWidth + 5, y, txtOpenRoadPath));
+            y += lineHeight;
+
+            // OpenSTA Path
+            panel.Controls.Add(CreateLabel("OpenSTA:", 15, y, labelWidth));
+            txtOpenStaPath = CreateTextBox(15 + labelWidth, y, textBoxWidth);
+            panel.Controls.Add(txtOpenStaPath);
+            panel.Controls.Add(CreateBrowseButton(15 + labelWidth + textBoxWidth + 5, y, txtOpenStaPath));
             y += lineHeight;
 
             // Magic Path
@@ -125,6 +133,7 @@ namespace KairosEDA.Controls
                 txtDockerImage.Enabled = chkUseDocker.Checked;
                 txtYosysPath.Enabled = !chkUseDocker.Checked;
                 txtOpenRoadPath.Enabled = !chkUseDocker.Checked;
+                txtOpenStaPath.Enabled = !chkUseDocker.Checked;
                 txtMagicPath.Enabled = !chkUseDocker.Checked;
                 txtNetgenPath.Enabled = !chkUseDocker.Checked;
             };
@@ -252,6 +261,7 @@ namespace KairosEDA.Controls
         {
             txtYosysPath.Text = toolchain.Config.YosysPath;
             txtOpenRoadPath.Text = toolchain.Config.OpenRoadPath;
+            txtOpenStaPath.Text = toolchain.Config.OpenStaPath;
             txtMagicPath.Text = toolchain.Config.MagicPath;
             txtNetgenPath.Text = toolchain.Config.NetgenPath;
             txtPdkPath.Text = toolchain.Config.PdkPath;
@@ -268,9 +278,10 @@ namespace KairosEDA.Controls
 
             var result = await toolchain.DetectTools();
 
-            lblStatus.Text = $"Found {result.FoundCount}/4 tools: " +
+            lblStatus.Text = $"Found {result.FoundCount}/5 tools: " +
                 $"Yosys={result.YosysFound}, " +
                 $"OpenROAD={result.OpenRoadFound}, " +
+                $"OpenSTA={result.OpenStaFound}, " +
                 $"Magic={result.MagicFound}, " +
                 $"Netgen={result.NetgenFound}";
 
@@ -286,6 +297,7 @@ namespace KairosEDA.Controls
             // Update text boxes
             txtYosysPath.Text = toolchain.Config.YosysPath;
             txtOpenRoadPath.Text = toolchain.Config.OpenRoadPath;
+            txtOpenStaPath.Text = toolchain.Config.OpenStaPath;
             txtMagicPath.Text = toolchain.Config.MagicPath;
             txtNetgenPath.Text = toolchain.Config.NetgenPath;
 
@@ -296,6 +308,7 @@ namespace KairosEDA.Controls
         {
             toolchain.Config.YosysPath = txtYosysPath.Text;
             toolchain.Config.OpenRoadPath = txtOpenRoadPath.Text;
+            toolchain.Config.OpenStaPath = txtOpenStaPath.Text;
             toolchain.Config.MagicPath = txtMagicPath.Text;
             toolchain.Config.NetgenPath = txtNetgenPath.Text;
             toolchain.Config.PdkPath = txtPdkPath.Text;
